@@ -639,8 +639,9 @@ function print_warn {
 
 function remove_unneeded {
     # Some Debian have portmap installed. We don't need that.
-    check_remove /sbin/portmap portmap
-
+    if [ "$OPENVZ" != 'gnome' ]; then
+        check_remove /sbin/portmap portmap
+    fi
     # Remove rsyslogd, which allocates ~30MB privvmpages on an OpenVZ system,
     # which might make some low-end VPS inoperatable. We will do this even
     # before running apt-get update.
@@ -714,8 +715,10 @@ END
 #Custom commands go here, mine are included as examples delete as required
 function custom {
     check_install keith rsync autossh lsof lua5.1 apticron
-    check_remove fancontrol fancontrol
-    check_remove dbus-daemon dbus
+    if [ "$OPENVZ" != 'gnome' ]; then
+        check_remove fancontrol fancontrol
+        check_remove dbus-daemon dbus
+    fi
     check_remove saslauthd sasl2-bin
     if [ -n '`grep "# set softwrap" /etc/nanorc`' ];then
         sed -i "s/# set softwrap/set softwrap/" /etc/nanorc
@@ -808,7 +811,7 @@ INTERFACE=all # Options are all for a dual stack ipv4/ipv6 server
 #                           ipv6 for an ipv6 server
 #               Defaults to ipv4 only if incorrect
 EMAIL=changeme@example.com # mail user or an external email address
-OPENVZ=yes # Change this to any other value than yes if not using OpenVZ
+OPENVZ=yes # Values are yes, no or gnome
 END
 fi
 if [ "$OPENVZ" = 'yes' ]; then
@@ -845,7 +848,7 @@ all)
     install_nginx
     install_php
     install_cgi
-    install_iptables $SSH_PORT
+#    install_iptables $SSH_PORT
     ;;
 postfix)
     install_postfix
