@@ -1,5 +1,8 @@
 For Debian Squeeze
 
+THIS SCRIPT IS MEANT TO BE RUN ON A NEW OR JUST REINS TALLED SERVER
+Some programs such as Apache & Samba are removed by this script.
+
 The file setup-debian.sh has to be on your server.
 For the initial setup git may not be installed on your server.
 If wget is installed try
