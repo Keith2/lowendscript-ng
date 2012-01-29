@@ -1,1 +1,17 @@
 For Debian Squeeze
+
+The file setup-debian.sh has to be on your server.
+For the initial setup git may not be installed on your server.
+If wget is installed try
+wget https://github.com/Keith2/lowendscript-ng/blob/master/setup-debian.sh
+
+For intitial server setup run
+bash setup-debian.sh all
+
+To install Friendica for domain example.com, after the initial server setup run
+bash setup-debian.sh friendica example.com
+
+
+
+
+

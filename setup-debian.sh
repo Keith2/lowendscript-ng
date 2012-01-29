@@ -380,7 +380,7 @@ server {
 END
     if [ "$FLAGS" = "ipv6" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 END
     fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
