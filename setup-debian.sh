@@ -62,16 +62,6 @@ function get_domain_name() {
     [ -z "$lowest" ] && echo "$domain" || echo "$lowest"
 }
 
-function disallow {
-    echo -n "To disallow dubious access press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        cat >> "/etc/nginx/sites-available/$1.conf" <<END
-    include disallow.conf;
-END
-    fi
-}
-
 function get_password() {
     # Check whether our local salt is present.
     SALT=/var/lib/radom_salt
@@ -91,9 +81,10 @@ deb http://packages.dotdeb.org stable all
 deb-src http://packages.dotdeb.org stable all
 END
         wget -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
-		print_info "dotdeb repository now being used"
+	print_info "dotdeb repository now being used"
     fi
 }
+
 function install_dash {
     check_install dash dash
     rm -f /bin/sh
@@ -215,50 +206,50 @@ upstream php {
 END
 	cat > /etc/nginx/standard.conf <<END
 location = /favicon.ico {
-    log_not_found off;
-    access_log off;
+	retuern 204;
+	log_not_found off;
+	access_log off;
 }
 
 location = /robots.txt {
-    allow all;
-    log_not_found off;
-    access_log off;
+	log_not_found off;
+	access_log off;
 }
 
 # Make sure files with the following extensions do not get loaded by nginx because nginx would display the source code, and these files can contain PASSWORDS!
 location ~* \.(engine|inc|info|install|make|module|profile|test|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)$|^(\..*|Entries.*|Repository|Root|Tag|Template)$|\.php_
 {
-    return 444;
+	return 444;
 }
 
 # Deny all attempts to access hidden files such as .htaccess, .htpasswd, .DS_Store (Mac).
 location ~ /\. {
-    return 444;
-    access_log off;
-    log_not_found off;
-    }
+	return 444;
+	access_log off;
+	log_not_found off;
+	}
 
 location ~*  \.(jpg|jpeg|png|gif|css|js|ico)$ {
-    expires max;
-    log_not_found off;
+	expires max;
+	log_not_found off;
 }
 END
     cat > /etc/nginx/nophp.conf <<END
 location ~* \.php\$ {
-    return 444;
+	return 444;
 }
 END
     cat > /etc/nginx/nocgi.conf <<END
 location ~* \\.(pl|cgi|py|sh|lua)\$ {
-    return 444;
+	return 444;
 }
 END
     cat > /etc/nginx/disallow.conf <<END
 location ~* (roundcube|webdav|smtp|http\\:|soap|w00tw00t) {
-    return 444;
+	return 444;
 }
 if (\$http_user_agent ~* "(Morfeus|larbin|ZmEu|Toata|Huawei|talktalk)" ) {
-    return 444;
+	return 444;
 }
 END
 	if [ -e /etc/nginx/disallow-agent.conf ]; then
@@ -273,13 +264,13 @@ function install_php {
     check_install php5-fpm php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin
     cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
-    include /etc/nginx/fastcgi_params;
+	include /etc/nginx/fastcgi_params;
 
-    fastcgi_index index.php;
-    fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-    if (-f \$request_filename) {
-        fastcgi_pass php;
-    }
+	fastcgi_index index.php;
+	fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+	if (-f \$request_filename) {
+		fastcgi_pass php;
+	}
 }
 END
     sed -i "/pm =/cpm = ondemand" /etc/php5/fpm/pool.d/www.conf
@@ -376,45 +367,44 @@ END
    # Setting up Nginx mapping
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
-    listen 80;
+	listen 80;
 END
     if [ "$FLAGS" = "ipv6" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    listen [::]:80 ipv6only=on;
+	listen [::]:80;
+END
+	fi
+    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+	server_name  www.$2;
+	rewrite ^(.*) http://$2\$1 permanent;
+}
+
+server {
+	listen 80;
+END
+    if [ "$FLAGS" = "ipv6" ]; then
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+	listen [::]:80;
+	server_name $2 ipv4.$2 ipv6.$2;
+END
+	else
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+	server_name $2;
 END
     fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    server_name $2;
 	access_log /var/log/nginx/$2.log main;
 	include standard.conf;
+#	include fastcgi_php;
+	include nophp.conf;
+#	include fcgiwrap.conf;
+	include nocgi.conf;
+	include disallow.conf;
 END
-    echo -n "To use php press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    include fastcgi_php;
-END
-    else
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    include nophp.conf;
-END
-    fi
-    echo -n "To use cgi press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    include fcgiwrap.conf;
-END
-    else
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    include nocgi.conf;
-END
-    fi
-	disallow $2
 
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    root   /var/www/$2;
-    index  index.html;
+	root /var/www/$2;
+	index index.html;
 }
 END
 
@@ -675,15 +665,15 @@ function install_wordpress {
 server {
 	listen 80;
 	listen [::]:80;
-    server_name $1;
-    root /var/www/$1;
-    access_log /var/log/nginx/$1.log main;
+	server_name $1;
+	root /var/www/$1;
+	access_log /var/log/nginx/$1.log main;
 	index index.php;
 	include standard.conf;
-    include fastcgi_php;
-    include nocgi.conf;
+	include fastcgi_php;
+	include nocgi.conf;
+	include disallow.conf;
 END
-    disallow $1
     cat >> "/etc/nginx/sites-available/$1.conf" <<END
 
     location / {
@@ -693,7 +683,7 @@ END
 END
 	if [ -e /etc/nginx/myips.conf ]; then
     	cat >> "/etc/nginx/sites-available/$1.conf" <<END
-    location /wp-admin {
+	location /wp-admin {
         include myips.conf;
         try_files \$uri \$uri/ /index.php;
     }
@@ -701,7 +691,7 @@ END
 END
 	fi
     cat >> "/etc/nginx/sites-available/$1.conf" <<END
-    location ~ \.php$ {
+	location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         #NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         include fastcgi_params;
@@ -715,14 +705,13 @@ END
 }
 
 function install_friendica {
-	if [ -z "$2" ]
-    then
-        die "Usage: `basename $0` friendica <hostname>"
-    fi
-    if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
-        die "$2 already exists"
-    fi
-    check_install "friendica dependencies" git php5-imap php5-mcrypt
+	if [ -z "$2" ]; 	then
+		die "Usage: `basename $0` friendica <hostname>"
+	fi
+	if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
+		die "$2 already exists"
+	fi
+	check_install "friendica dependencies" git php5-imap php5-mcrypt
 	if [ ! -d /var/www ]; then
 		mkdir /var/www
 	fi
@@ -733,125 +722,112 @@ function install_friendica {
 	if [ ! "$3" = "redo" ]; then
 		git clone https://github.com/friendica/friendica.git
 		mv friendica $2
-		chown -R www-data:www-data $2
+		chown www-data:www-data $2
 		cd $2
 		git clone https://github.com/friendica/friendica-addons.git
 		mv friendica-addons addon
-		chown -R www-data:www-data addon
+		chown www-data:www-data addon
 	fi
 	cd /var/www/$2
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
-    listen 80;
+	listen 80;
 #	listen 443 ssl;
 END
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
-    listen [::]:80;
-#    listen [::]:443 ipv6only=on ssl;
+	listen [::]:80;
+#	listen [::]:443 ssl;
 END
 	fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name $2;
-    access_log /var/log/nginx/$2.log main;
-#    ssl_certificate ssl_keys/$2.crt;
-#    ssl_certificate_key ssl_keys/$2.key;
-#    ssl_session_timeout  5m;
-#    ssl_session_cache shared:SSL:10m;
-#    ssl_protocols SSLv3 TLSv1;
-#    ssl_ciphers  ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv3:+EXP;
-#    ssl_prefer_server_ciphers   on;
+	access_log /var/log/nginx/$2.log main;
+	root /var/www/$2;
 
-    root /var/www/$2;
-    ## This should be in your http block and if it is, it's not needed here.
-    index index.php;
-	access_log /var/log/nginx/$2.log;
-    include standard.conf;
+#	ssl_certificate ssl_keys/$2.crt;
+#	ssl_certificate_key ssl_keys/$2.key;
+#	ssl_session_timeout  5m;
+#	ssl_session_cache shared:SSL:10m;
+#	ssl_protocols SSLv3 TLSv1;
+#	ssl_ciphers  ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv3:+EXP;
+#	ssl_prefer_server_ciphers   on;
 
-    location ~ \.php$ {
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        #NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-        include fastcgi_params;
-        fastcgi_intercept_errors on;
-        fastcgi_pass php;
-#        fastcgi_read_timeout 300;
-    }
+	location = /favicon.ico {
+		return 204;
+		log_not_found off;
+		access_log off;
+	}
 
-    if (!-e \$request_filename){
-        rewrite  ^(.*)$ /index.php?q=\$1 last;
-    }
-    location / {
-        try_files \$uri \$uri/ /index.php;
-    }
+	location = /robots.txt {
+		log_not_found off;
+		access_log off;
+	}
+
+	location ~ /\.(ht|git) {
+		return 444;
+		access_log off;
+		log_not_found off;
+	}
+
+	location ~ \.log$ {
+		return 444;
+		access_log off;
+		log_not_found off;
+	}
+
+	location ~ \.php$ {
+		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+		include fastcgi_params;
+#		fastcgi_param HTTPS on;
+		fastcgi_index index.php;
+		fastcgi_pass php;
+		try_files \$uri \$uri/ =404;
+	}
+
+	location / {
+		index index.php;
+		if (!-f \$request_filename) {
+			rewrite ^/(.+)\$ /index.php?q=\$1 last;
+		}
+		try_files \$uri \$uri/ =404;
+	}
 }
 END
-	string="/var/www/$2;git pull"
-    if [ -z "`grep '$string' /etc/crontab`" ]; then
-	    cat >> "/etc/crontab" <<END
+	cat > "/var/www/$2/robots.txt" <<END
+User-agent: *
+Disallow: /
+END
 
+	string="/var/www/$2;git pull"
+	cat > "/etc/cron.d/$2" <<END
 50 7 * * * root cd /var/www/$2;git pull;#service php5-fpm restart
 55 7 * * * root cd /var/www/$2/addon;git pull;#service php5-fpm restart
 */10 * * * *   www-data  cd /var/www/$2; nice -n 15 /usr/bin/php include/poller.php > /dev/null
 END
-		fi
 	ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
-    service nginx force-reload
-    cd /var/www/$2
+	service nginx force-reload
+	cd /var/www/$2
 	cp htconfig.php .htconfig.php
-    echo -n "Enter admin email: "
-    read -e EMAIL
-    sed -i "/\['admin_email'\]/c\$a->config['admin_email'] = '$EMAIL';" .htconfig.php
-    sed -i "/\['sitename'\]/c\$a->config['sitename'] = '$2';" .htconfig.php
-    dbname=`echo $2 | tr . _`
-    echo database is $dbname
-#    userid=`substr($dbname,0,15)
+	echo -n "Enter admin email: "
+	read -e EMAIL
+	sed -i "/\['admin_email'\]/c\$a->config['admin_email'] = '$EMAIL';" .htconfig.php
+	sed -i "/\['sitename'\]/c\$a->config['sitename'] = '$2';" .htconfig.php
+	dbname=`echo $2 | tr . _`
+	echo database is $dbname
+#	userid=`substr($dbname,0,15)
 	echo $userid;
-    # MySQL userid cannot be more than 15 characters long
-    userid="${dbname:0:15}"
-    echo $userid;
-    passwd=`get_password "$userid@mysql"`
-    mysqladmin create "$dbname"
-    echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | mysql
-    sed -i "/\$db_host =/c\$db_host = 'localhost';" .htconfig.php
-    sed -i "/\$db_user =/c\$db_user = '$userid';" .htconfig.php
-    sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
-    sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
-    mysql $dbname < ./database.sql
-}
-
-function install_adminer {
-    if [ -z "$2" ]; then
-        die "Usage: `basename $0` adminer <hostname>"
-    fi
-    if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
-        die "$2 already exists"
-    fi
-    if [ ! -d /var/www ]; then
-        mkdir /var/www
-    fi
-    cd /var/www
-	mkdir $2
-	cd $2
-	wget --timestamping http://icloud.me4.it/adminer.php
-    cat > "/etc/nginx/sites-available/$2.conf" <<END
-server {
-	listen   80;
-	listen  [::]:80;
-	server_name $2;
-	access_log /var/log/nginx/$2.log main;
-	include fastcgi_php;
-	root   /var/www/$2;
-	index adminer.php;
-	error_page  404  /404.html;
-	include disallow.conf;
-	include nocgi.conf;
-	include myips.conf;
-}
-END
-#	myips.conf not created by this script
-
-    ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
-    service nginx force-reload
+	# MySQL userid cannot be more than 15 characters long
+	userid="${dbname:0:15}"
+	echo $userid;
+	passwd=`get_password "$userid@mysql"`
+	mysqladmin create "$dbname"
+	echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | mysql
+	sed -i "/\$db_host =/c\$db_host = 'localhost';" .htconfig.php
+	sed -i "/\$db_user =/c\$db_user = '$userid';" .htconfig.php
+	sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
+	sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
+	mysql $dbname < ./database.sql
 }
 
 function install_yourls {
@@ -1032,10 +1008,10 @@ function custom {
         sed -i "s/# set softwrap/set softwrap/" /etc/nanorc
         print_info "set softwrap in /etc/nanorc"
     fi
-    if [ -n '`grep "# set tabsize 8" /etc/nanorc`' ];then
-        sed -i "s/# set tabsize 8/set tabsize 4/" /etc/nanorc
-        print_info "set tabsize 4 in /etc/nanorc"
-    fi
+#    if [ -n '`grep "# set tabsize 8" /etc/nanorc`' ];then
+#        sed -i "s/# set tabsize 8/set tabsize 4/" /etc/nanorc
+#        print_info "set tabsize 4 in /etc/nanorc"
+#    fi
     if [ -n "`grep '#   Port 22' /etc/ssh/ssh_config`" ];then
         sed -i "s/#   Port 22/   Port $SSH_PORT/" /etc/ssh/ssh_config
 		print_info "default outgoing ssh port set to $SSH_PORT"
@@ -1057,17 +1033,17 @@ server {
 END
     if [ "$INTERFACE" = "all" ]; then
         cat >> /etc/nginx/sites-available/default <<END
-    listen   80 default_server; ## listen for ipv4
-    listen   [::]:80 default_server ipv6only=on; ## listen for ipv6
+    listen 80 default_server; ## listen for ipv4
+    listen [::]:80 default_server ipv6only=on; ## listen for ipv6
 END
     else
         if [ "$INTERFACE" = "ipv6" ]; then
             cat >> /etc/nginx/sites-available/default <<END
-    listen   [::]:80; ## listen for ipv6
+    listen [::]:80 default_server; ## listen for ipv6
 END
         else
             cat >> /etc/nginx/sites-available/default <<END
-    listen   80 default_server; ## listen for ipv4
+    listen 80 default_server; ## listen for ipv4
 END
         fi
     fi
