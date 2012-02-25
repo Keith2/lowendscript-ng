@@ -206,7 +206,7 @@ upstream php {
 END
 	cat > /etc/nginx/standard.conf <<END
 location = /favicon.ico {
-	retuern 204;
+	return 204;
 	log_not_found off;
 	access_log off;
 }
