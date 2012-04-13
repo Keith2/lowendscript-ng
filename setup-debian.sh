@@ -132,7 +132,7 @@ END
 }
 
 function install_postfix {
-    check_install mail postfix
+    check_install postfix postfix
     #sed -i "s/dc_eximconfig_configtype='local'/dc_eximconfig_configtype='internet'/" /etc/exim4/update-exim4.conf.conf
     #invoke-rc.d postfix restart
     cat > /etc/aliases <<END
