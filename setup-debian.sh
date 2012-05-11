@@ -798,8 +798,8 @@ END
 User-agent: *
 Disallow: /
 END
-        if [ !  "$3¿½" = "redo" ]; then
-                cat > "/etc/crontab" <<END
+        if [ !  "$3" = "redo" ]; then
+                cat >> "/etc/crontab" <<END
 50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
 */10 * * * *   www-data  cd /var/www/$2; nice -n 15 /usr/bin/php include/poller.php > /dev/null
 END
