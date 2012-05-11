@@ -798,13 +798,12 @@ END
 User-agent: *
 Disallow: /
 END
-
-	string="/var/www/$2;git pull"
-	cat > "/etc/cron.d/$2" <<END
-50 7 * * * root cd /var/www/$2;git pull;#service php5-fpm restart
-55 7 * * * root cd /var/www/$2/addon;git pull;#service php5-fpm restart
+        if [ !  "$3¿½" = "redo" ]; then
+                cat > "/etc/crontab" <<END
+50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
 */10 * * * *   www-data  cd /var/www/$2; nice -n 15 /usr/bin/php include/poller.php > /dev/null
 END
+        fi
 	ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
 	service nginx force-reload
 	cd /var/www/$2
