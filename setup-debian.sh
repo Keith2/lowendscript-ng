@@ -1033,22 +1033,28 @@ END
     if [ "$INTERFACE" = "all" ]; then
         cat >> /etc/nginx/sites-available/default <<END
     listen 80 default_server; ## listen for ipv4
+    listen 443 default_server ssl; ## listen for ipv4
     listen [::]:80 default_server ipv6only=on; ## listen for ipv6
+    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
 END
     else
         if [ "$INTERFACE" = "ipv6" ]; then
             cat >> /etc/nginx/sites-available/default <<END
     listen [::]:80 default_server; ## listen for ipv6
+    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
 END
         else
             cat >> /etc/nginx/sites-available/default <<END
     listen 80 default_server; ## listen for ipv4
+    listen 443 default_server ssl; ## listen for ipv4
 END
         fi
     fi
     cat >> /etc/nginx/sites-available/default <<END
     server_name  _;
     access_log  /var/log/nginx/default.log;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
     return 444;
 }
 END
