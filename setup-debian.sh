@@ -3,14 +3,12 @@
 function check_install {
     if [ -z "`which "$1" 2>/dev/null`" ]
     then
-        executable=$1
-        shift
-        while [ -n "$1" ]
-        do
-            DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y install "$1"
-            print_info "$1 installed for $executable"
-            shift
-        done
+#        if [ "$1" = "postfix" ]; then
+#                DEBIAN_FRONTEND=noninteractive apt-get -t squeeze-backports --no-install-recommends -q -y install "$2"
+#        else
+                DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y install $2
+#        fi
+        print_info "$2 installed for $1"
     else
         print_warn "$2 already installed"
     fi
@@ -86,15 +84,15 @@ END
 }
 
 function install_dash {
-    check_install dash dash
+    check_install dash "dash"
     rm -f /bin/sh
     ln -s dash /bin/sh
 }
 
 function install_dropbear {
-    check_install ssh ssh
-    check_install dropbear dropbear
-    check_install /usr/sbin/xinetd xinetd
+    check_install ssh "ssh"
+    check_install dropbear "dropbear"
+    check_install /usr/sbin/xinetd "xinetd"
 
     # Disable SSH
     touch /etc/ssh/sshd_not_to_be_run
@@ -132,7 +130,7 @@ END
 }
 
 function install_postfix {
-    check_install postfix postfix
+    check_install postfix "postfix"
     #sed -i "s/dc_eximconfig_configtype='local'/dc_eximconfig_configtype='internet'/" /etc/exim4/update-exim4.conf.conf
     #invoke-rc.d postfix restart
     cat > /etc/aliases <<END
@@ -148,7 +146,7 @@ END
     newaliases
 }
 function install_exim4 {
-    check_install mail exim4
+    check_install mail "exim4"
     if [ -f /etc/exim4/update-exim4.conf.conf ]
     then
         sed -i \
@@ -160,8 +158,8 @@ function install_exim4 {
 
 function install_mysql {
     # Install the MySQL packages
-    check_install mysqld mysql-server
-    check_install mysql mysql-client
+    check_install mysqld "mysql-server"
+    check_install mysql "mysql-client"
 
     # Install a low-end copy of the my.cnf to disable InnoDB, and then delete
     # all the related files.
@@ -190,7 +188,7 @@ END
 }
 
 function install_nginx {
-    check_install nginx nginx
+    check_install nginx "nginx"
 
     # Need to increase the bucket size for Debian 5.
     cat > /etc/nginx/conf.d/lowendbox.conf <<END
@@ -202,6 +200,37 @@ log_format  main  '\$remote_addr \$host \$remote_user [\$time_local] "\$request"
 access_log /var/log/nginx/access.log main;
 upstream php {
 	server unix:/var/run/php5-fpm.sock;
+}
+END
+    cat > /etc/nginx/sites-available/default <<END
+server {
+END
+    if [ "$INTERFACE" = "all" ]; then
+        cat >> /etc/nginx/sites-available/default <<END
+    listen 80 default_server; ## listen for ipv4
+    listen 443 default_server ssl; ## listen for ipv4
+    listen [::]:80 default_server ipv6only=on; ## listen for ipv6
+    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
+END
+    else
+        if [ "$INTERFACE" = "ipv6" ]; then
+            cat >> /etc/nginx/sites-available/default <<END
+    listen [::]:80 default_server; ## listen for ipv6
+    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
+END
+        else
+            cat >> /etc/nginx/sites-available/default <<END
+    listen 80 default_server; ## listen for ipv4
+    listen 443 default_server ssl; ## listen for ipv4
+END
+        fi
+    fi
+    cat >> /etc/nginx/sites-available/default <<END
+    server_name  _;
+    access_log  /var/log/nginx/default.log;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+    return 444;
 }
 END
 	cat > /etc/nginx/standard.conf <<END
@@ -261,7 +290,7 @@ END
 }
 
 function install_php {
-    check_install php5-fpm php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin
+    check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin"
     cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
 	include /etc/nginx/fastcgi_params;
@@ -313,7 +342,7 @@ END
 }
 
 function install_cgi {
-    check_install fcgiwrap fcgiwrap
+    check_install fcgiwrap "fcgiwrap"
     cat > /etc/nginx/fcgiwrap.conf <<END
 location ~ (\.cgi|\.py|\.sh|\.pl|\.lua)$ {
     gzip off;
@@ -413,7 +442,7 @@ END
 }
 function install_iptables {
 
-    check_install iptables iptables
+    check_install iptables "iptables"
 
     if [ -z "$1" ]
     then
@@ -591,7 +620,7 @@ function install_syslogd {
     # We just need a simple vanilla syslogd. Also there is no need to log to
     # so many files (waste of fd). Just dump them into
     # /var/log/(cron/mail/messages)
-    check_install /usr/sbin/syslogd inetutils-syslogd
+    check_install /usr/sbin/syslogd "inetutils-syslogd"
     invoke-rc.d inetutils-syslogd stop
 
     for file in /var/log/*.log /var/log/mail.* /var/log/debug /var/log/syslog
@@ -630,7 +659,7 @@ END
 }
 
 function install_wordpress {
-    check_install wget wget
+    check_install wget "wget"
     if [ -z "$1" ]
     then
         die "Usage: `basename $0` wordpress <hostname>"
@@ -711,7 +740,7 @@ function install_friendica {
 	if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
 		die "$2 already exists"
 	fi
-	check_install "friendica dependencies" git php5-imap php5-mcrypt
+	check_install "friendica dependencies" "git php5-imap php5-mcrypt"
 	if [ ! -d /var/www ]; then
 		mkdir /var/www
 	fi
@@ -836,7 +865,7 @@ function install_yourls {
     if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
         die "$2 already exists"
     fi
-    #check_install "yourls dependencies" git php5-imap php5-mcrypt
+    #check_install "yourls dependencies" "git php5-imap php5-mcrypt"
     if [ ! -d /var/www ]; then
         mkdir /var/www
     fi
@@ -850,7 +879,7 @@ function install_imap {
     if [ -d /var/www/$3 -a ! "$4" = "redo" ]; then
         die "$3 already exists"
     fi
-    check_install imap postfix dovecot-imapd squirrelmail procmail php5-imap
+    check_install imap "postfix dovecot-imapd squirrelmail procmail php5-imap"
 	if [ -z "`grep $2: /etc/passwd`" ]; then
         useradd -g users -m $2
 		echo creating password for $2
@@ -901,7 +930,7 @@ function install_statusnet {
     if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
         die "$2 already exists"
     fi
-    check_install "statusnet dependencies" git php5-imap php5-mcrypt
+    check_install "statusnet dependencies" "git php5-imap php5-mcrypt"
     if [ ! -d /var/www ]; then
         mkdir /var/www
     fi
@@ -962,7 +991,7 @@ root            -       stack           256
 END
         fi
     fi
-	check_install locales locales
+	check_install locales "locales"
     dpkg-reconfigure locales
     apt-get -q -y upgrade
 }
@@ -997,7 +1026,7 @@ END
 
 #Custom commands go here, mine are included as examples delete as required
 function custom {
-    check_install keith rsync autossh lsof lua5.1 apticron dnsutils
+    check_install keith "rsync autossh apticron dnsutils"
     if [ "$OPENVZ" != 'gnome' ]; then
         check_remove fancontrol fancontrol
         check_remove dbus-daemon dbus
@@ -1027,37 +1056,6 @@ function custom {
     sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
     sed -i "s/weekly/daily/" /etc/logrotate.conf
     sed -i "s/rotate 4/rotate 1/" /etc/logrotate.conf
-    cat > /etc/nginx/sites-available/default <<END
-server {
-END
-    if [ "$INTERFACE" = "all" ]; then
-        cat >> /etc/nginx/sites-available/default <<END
-    listen 80 default_server; ## listen for ipv4
-    listen 443 default_server ssl; ## listen for ipv4
-    listen [::]:80 default_server ipv6only=on; ## listen for ipv6
-    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
-END
-    else
-        if [ "$INTERFACE" = "ipv6" ]; then
-            cat >> /etc/nginx/sites-available/default <<END
-    listen [::]:80 default_server; ## listen for ipv6
-    listen [::]:443 default_server ipv6only=on ssl; ## listen for ipv6
-END
-        else
-            cat >> /etc/nginx/sites-available/default <<END
-    listen 80 default_server; ## listen for ipv4
-    listen 443 default_server ssl; ## listen for ipv4
-END
-        fi
-    fi
-    cat >> /etc/nginx/sites-available/default <<END
-    server_name  _;
-    access_log  /var/log/nginx/default.log;
-    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
-    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
-    return 444;
-}
-END
     chown www-data:adm /var/log/nginx/*.log
     service nginx restart
     cat > /usr/local/bin/bootmail.py <<END
@@ -1115,7 +1113,7 @@ if [ "$OPENVZ" = 'yes' ]; then
 fi
 if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" ]; then
     apt-get -q -y update
-    check_install nano nano
+    check_install nano "nano"
 fi
 if [ ! "$1" = "domain" ]; then
 	nano ./setup-debian.conf
@@ -1136,7 +1134,7 @@ all)
 	remove_unneeded
     dotdeb
     update_upgrade
-    check_install tzdata tzdata
+    check_install tzdata "tzdata"
     dpkg-reconfigure tzdata
     install_dash
     install_syslogd
@@ -1148,7 +1146,7 @@ all)
     fi
     install_postfix
     install_mysql
-    install_nginx
+    install_nginx #nginx is installed after postfix as it uses postfix's ssl cert
     install_php
     install_cgi
 #    install_iptables $SSH_PORT
@@ -1166,7 +1164,11 @@ mysql)
     install_mysql
     ;;
 nginx)
-    install_nginx
+    if [ -z "`which "postfix" 2>/dev/null`" ]; then
+        print_warn "Postfix has to be installed as nginx uses Postfix's ssl cert"
+    else
+        install_nginx
+    fi
     ;;
 php)
     install_php
@@ -1181,7 +1183,7 @@ system)
     remove_unneeded
     dotdeb
     update_upgrade
-	check_install tzdata tzdata
+    check_install tzdata "tzdata"
     dpkg-reconfigure tzdata
     install_dash
     install_syslogd
