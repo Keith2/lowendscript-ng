@@ -290,7 +290,11 @@ END
 }
 
 function install_php {
-    check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin"
+	if [ "$DISTRIBUTION" = "wheezy" ]; then
+        check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php-apc"
+    else
+        check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin"
+    fi
     cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
 	include /etc/nginx/fastcgi_params;
@@ -1099,6 +1103,7 @@ INTERFACE=all # Options are all for a dual stack ipv4/ipv6 server
 #               Defaults to ipv4 only if incorrect
 EMAIL=changeme@example.com # mail user or an external email address
 OPENVZ=yes # Values are yes, no or gnome
+DISTRIBUTION=squeeze # Values are squeeze or wheezy
 END
 fi
 
@@ -1108,8 +1113,8 @@ fi
 if [ -z "`grep 'MEMORY' ./setup-debian.conf`" ]; then
 	echo MEMORY=128 \# values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available >> ./setup-debian.conf
 fi
-if [ "$OPENVZ" = 'yes' ]; then
-    vzquota_fix
+if [ -z "`grep 'DISTRIBUTION' ./setup-debian.conf`" ]; then
+    echo DISTRIBUTION=squeeze \# Values are squeeze or wheezy >> ./setup-debian.conf
 fi
 if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" ]; then
     apt-get -q -y update
@@ -1119,6 +1124,10 @@ if [ ! "$1" = "domain" ]; then
 	nano ./setup-debian.conf
 fi
 [ -r ./setup-debian.conf ] && . ./setup-debian.conf
+
+if [ "$OPENVZ" = 'yes' -a "$DISTRIBUTION" = "squeeze" ]; then
+    vzquota_fix
+fi
 
 if [ "$CPUCORES" = "detect" ]; then
 	CPUCORES=`grep -c processor //proc/cpuinfo`
@@ -1132,7 +1141,11 @@ fi
 case "$1" in
 all)
 	remove_unneeded
-    dotdeb
+	if [ "$DISTRIBUTION" = "squeeze" ]; then
+        dotdeb
+    elif [ -e /etc/apt/sources.list.d/dotdeb.list ];then
+        rm /etc/apt/sources.list.d/dotdeb.list
+	fi
     update_upgrade
     check_install tzdata "tzdata"
     dpkg-reconfigure tzdata
