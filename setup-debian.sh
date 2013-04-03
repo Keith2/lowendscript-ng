@@ -838,12 +838,13 @@ function install_friendica {
 	fi
 	cd /var/www/$2
 
-    if "$SERVER" = "nginx" ]; then
-    cat > "/etc/nginx/sites-available/$2.conf" <<END
+    if [ "$SERVER" = "nginx" ]; then
+		cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
 	listen 80;
 #	listen 443 ssl;
 END
+    fi
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	listen [::]:80;
@@ -904,7 +905,6 @@ END
 	}
 }
 END
-    fi
     if [ "$SERVER" = "lighttpd" ]; then
         host=${2//./\\.}
 	cat > "/etc/lighttpd/sites-available/$2.conf" <<END
@@ -1141,7 +1141,7 @@ END
 
 #Custom commands go here, mine are included as examples delete as required
 function custom {
-    check_install keith "rsync autossh apticron dnsutils"
+    check_install keith "rsync autossh apticron dnsutils mc"
     if [ "$OPENVZ" != 'gnome' ]; then
         check_remove fancontrol fancontrol
         check_remove dbus-daemon dbus
