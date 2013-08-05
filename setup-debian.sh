@@ -1080,7 +1080,7 @@ function remove_unneeded {
     check_remove /usr/sbin/named bind9
     check_remove /usr/sbin/smbd 'samba*'
     check_remove /usr/sbin/nscd nscd
-    apt-get -q -y purge smbfs libwbclient0 libapr1 x11-common
+    apt-get -q -y purge smbfs libapr1
 
     # Need to stop sendmail as removing the package does not seem to stop it.
     if [ -f /usr/lib/sm.bin/smtpd ]
