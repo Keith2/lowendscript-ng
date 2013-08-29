@@ -861,7 +861,7 @@ END
 #	ssl_session_timeout  10m;
 #	ssl_session_cache shared:SSL:10m;
 #	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
-#       ssl_ciphers ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:EDH-DSS-DES-CBC3-SHA:!MD5:!aNULL:!EDH;
+#	ssl_ciphers ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:EDH-DSS-DES-CBC3-SHA:!MD5:!aNULL:!EDH;
 #	ssl_prefer_server_ciphers   on;
 
 	location = /favicon.ico {
