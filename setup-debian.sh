@@ -858,10 +858,10 @@ END
 
 #	ssl_certificate ssl_keys/$2.crt;
 #	ssl_certificate_key ssl_keys/$2.key;
-#	ssl_session_timeout  5m;
+#	ssl_session_timeout  10m;
 #	ssl_session_cache shared:SSL:10m;
-#	ssl_protocols SSLv3 TLSv1;
-#	ssl_ciphers  ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv3:+EXP;
+#	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+#       ssl_ciphers ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:EDH-DSS-DES-CBC3-SHA:!MD5:!aNULL:!EDH;
 #	ssl_prefer_server_ciphers   on;
 
 	location = /favicon.ico {
