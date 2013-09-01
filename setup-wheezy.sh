@@ -499,6 +499,12 @@ END
 	index index.html;
 }
 END
+    cat > "/etc/nginx/myips.conf" <<END
+allow 127.0.0.1;
+#deny all; # Used to restrict access to yourself for non-public areas of websites
+# Uncomment the above line, comment the following line and add your allowed ip subnets after allow 127.0.0.1
+allow all;
+END
 
     ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
     invoke-rc.d nginx reload
@@ -789,7 +795,7 @@ END
 END
 	if [ -e /etc/nginx/myips.conf ]; then
     	    cat >> "/etc/nginx/sites-available/$1.conf" <<END
-	location /wp-admin {
+    location /wp-admin {
         include myips.conf;
         try_files \$uri \$uri/ /index.php;
     }
@@ -797,7 +803,7 @@ END
 END
 	fi
 	cat >> "/etc/nginx/sites-available/$1.conf" <<END
-	location ~ \.php$ {
+    location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         #NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         include fastcgi_params;
