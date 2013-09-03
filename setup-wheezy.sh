@@ -1168,7 +1168,7 @@ import datetime
 import smtplib
 def smtp():
     host="`hostname -f`"
-    to = '$EMAIL'
+    to = 'root'
     mail_user = 'bootmail@%s' % (host)
     smtpserver = smtplib.SMTP("127.0.0.1",25)
     smtpserver.ehlo()
