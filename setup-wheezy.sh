@@ -300,9 +300,22 @@ END
     sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
 }
 
+function install_nginx-upstream {
+    wget -O - http://nginx.org/keys/nginx_signing.key | apt-key add -
+    cat > /etc/apt/sources.list.d/nginx.list <<END
+deb http://nginx.org/packages/debian/ wheezy nginx
+#deb-src http://nginx.org/packages/debian/ wheezy nginx
+END
+    apt-get update
+    apt-get -y remove nginx nginx-full nginx-common
+    apt-get install nginx
+    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
+}
+
 function install_apache {
     check_install apache "apache"
 }
+
 function install_lighttpd {
     check_install lighttpd "lighttpd"
     if [ ! -e /etc/lighttpd/conf-enabled/10-accesslog.conf ]; then
@@ -1232,7 +1245,7 @@ fi
 if [ -z "`grep 'SERVER' ./setup-debian.conf`" ]; then
     echo SERVER=nginx \# Values are nginx or lighttpd >> ./setup-debian.conf
 fi
-if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" ]; then
+if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" ]; then
     apt-get -q -y update
     check_install nano "nano"
 fi
@@ -1285,6 +1298,14 @@ nginx)
         install_nginx
     fi
     ;;
+nginx-upstream)
+    if [ -z "`which "nginx" 2>/dev/null`" ]; then
+        print_warn "Nginx has to be installed as this is an upgrade only."
+    else
+        install_nginx-upstream
+    fi
+    ;;
+
 #apache)
 #    install_apache
 #    ;;
@@ -1315,7 +1336,7 @@ friendica)
     ;;
 *)    echo 'Usage:' `basename $0` '[option]'
     echo 'Available option:'
-    for option in system postfix iptables mysql lighttpd nginx php cgi domain wordpress friendica custom
+    for option in system postfix iptables mysql lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom
     do
         echo '  -' $option
     done
