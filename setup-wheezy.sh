@@ -1123,9 +1123,20 @@ root            -       stack           256
 END
         fi
     fi
-	check_install locales "locales"
+    check_install dialog "dialog"
+    check_install locales "locales"
     dpkg-reconfigure locales
     apt-get -q -y upgrade
+    check_install tzdata "tzdata"
+    dpkg-reconfigure tzdata
+    install_dash
+    install_syslogd
+    install_dropbear
+    echo -n "To change root password press y then [ENTER]: "
+    read -e reply
+    if [ "$reply" = "y" ]; then
+        passwd
+    fi
 }
 
 #                                      OPTIONAL
@@ -1243,16 +1254,6 @@ case "$1" in
 all)
     remove_unneeded
     update_upgrade
-    check_install tzdata "tzdata"
-    dpkg-reconfigure tzdata
-    install_dash
-    install_syslogd
-    install_dropbear
-    echo -n "To change root password press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        passwd
-    fi
     install_postfix
     install_mysql
     if [ "$SERVER" = "apache" ]; then
@@ -1302,16 +1303,6 @@ domain)
 system)
     remove_unneeded
     update_upgrade
-    check_install tzdata "tzdata"
-    dpkg-reconfigure tzdata
-    install_dash
-    install_syslogd
-    install_dropbear
-    echo -n "To change root password press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        passwd
-    fi
     ;;
 custom)
     custom $2
