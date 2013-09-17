@@ -291,12 +291,13 @@ if (\$http_user_agent ~* "(Morfeus|larbin|ZmEu|Toata|Huawei|talktalk)" ) {
 	return 444;
 }
 END
-	if [ -e /etc/nginx/disallow-agent.conf ]; then
-		rm /etc/nginx/disallow-agent.conf
-	fi
-	sed -i """/worker_processes/cworker_processes "$CPUCORES";""" /etc/nginx/nginx.conf
-	invoke-rc.d nginx restart
-	chown www-data:adm /var/log/nginx/*
+#   delete deprecated file
+    rm -f /etc/nginx/disallow-agent.conf
+
+    sed -i """/worker_processes/cworker_processes "$CPUCORES";""" /etc/nginx/nginx.conf
+    invoke-rc.d nginx restart
+    chown www-data:adm /var/log/nginx/*
+    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
 }
 
 function install_apache {
@@ -1158,7 +1159,6 @@ function custom {
     if [ -z "`grep 'dpkg --get-selections' /etc/crontab`" ];then
 	    echo "0 10 * * * root dpkg --get-selections >/root/dpkg-selections" >> /etc/crontab
     fi
-    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
     sed -i "s/weekly/daily/" /etc/logrotate.conf
     sed -i "s/rotate 4/rotate 1/" /etc/logrotate.conf
     chown www-data:adm /var/log/nginx/*.log
