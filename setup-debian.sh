@@ -445,7 +445,7 @@ END
 User-agent: *
 Disallow: /
 END
-if [ "SERVER" = "nginx" ];then
+if [ "$SERVER" = "nginx" ];then
    # Setting up Nginx mapping
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {

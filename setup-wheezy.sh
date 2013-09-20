@@ -200,18 +200,106 @@ END
 function install_nginx {
     check_install nginx "nginx"
 
-    # Need to increase the bucket size for Debian 5.
-    cat > /etc/nginx/conf.d/lowendbox.conf <<END
-server_names_hash_bucket_size 64;
-server_tokens off;
-ignore_invalid_headers on;
-log_format  main  '\$remote_addr \$host \$remote_user [\$time_local] "\$request" '
-               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$gzip_ratio"';
-access_log /var/log/nginx/access.log main;
-upstream php {
-	server unix:/var/run/php5-fpm.sock;
-}
+    if [ ! -d /etc/nginx/ssl_keys ]; then
+        mkdir /etc/nginx/ssl_keys
+    fi
+    if [ ! -e /etc/nginx/ssl_keys/dhparam-1024.pem ]; then
+        openssl dhparam -out /etc/nginx/ssl_keys/dhparam-1024.pem 1024
+    fi
+
+# Create a ssl default ssl certificate. This is an ecc certificate.
+# There could be problems with older browsers recognising it, if reused.
+    if [ ! -e /etc/nginx/ssl_keys/default.ec.crt ]; then
+	cat > /etc/nginx/ssl_keys/default.ec.conf <<END
+[req]
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName         = Country Name (2 letter code)
+countryName_default     = XX
+countryName_min         = 2
+countryName_max         = 2
+
+commonName          = Common Name (eg, YOUR name)
+commonName_default  = Default CA
+commonName_max          = 64
 END
+	openssl ecparam -out /etc/nginx/ssl_keys/default.ec.key -name secp521r1 -genkey
+	openssl req -new -key /etc/nginx/ssl_keys/default.ec.key -x509 -nodes -days 3650 -out /etc/nginx/ssl_keys/default.ec.crt -config /etc/nginx/ssl_keys/default.ec.conf -batch
+    fi
+# Need to increase the bucket size for Debian 5.
+    cat > /etc/nginx/nginx.conf <<END
+user www-data;
+worker_processes $CPUCORES;
+pid /run/nginx.pid;
+
+events {
+	worker_connections 768;
+	# multi_accept on;
+}
+
+http {
+
+	##
+	# Basic Settings
+	##
+
+	sendfile on;
+	tcp_nopush on;
+	tcp_nodelay on;
+	keepalive_timeout 65;
+	types_hash_max_size 2048;
+	server_names_hash_bucket_size 64;
+	ignore_invalid_headers on;
+	log_format  main  '\$remote_addr \$host \$server_port \$remote_user [\$time_local] "\$request" '
+               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for"';
+	upstream php {
+		server unix:/var/run/php5-fpm.sock;
+	}
+
+	# server_name_in_redirect off;
+
+	include mime.types;
+	default_type application/octet-stream;
+
+	##
+	# Logging Settings
+	##
+
+	access_log /var/log/nginx/access.log main;
+	error_log /var/log/nginx/error.log error;
+
+	##
+	# Gzip Settings
+	##
+
+	gzip on;
+	gzip_disable "msie6";
+	gzip_min_length 1400;
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 16 8k;
+	gzip_http_version 1.1;
+	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+	ssl_certificate ssl_keys/default.ec.crt;
+	ssl_certificate_key ssl_keys/default.ec.key;
+	ssl_dhparam ssl_keys/dhparam-1024.pem;
+	ssl_session_timeout 5m;
+	ssl_session_cache shared:SSL:10m;
+	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+	ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES256-SHA:DHE-RSA-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:DHE-RSA-CAMELLIA128-SHA:HIGH:!aNULL;
+	ssl_prefer_server_ciphers on;
+
+	include /etc/nginx/conf.d/*.conf;
+	include /etc/nginx/sites-enabled/*;
+}
+
+END
+
+# Remove deprecated file
+    rm -f /etc/nginx/conf.d/lowendbox.conf
     cat > /etc/nginx/sites-available/default <<END
 server {
 END
@@ -237,9 +325,8 @@ END
     fi
     cat >> /etc/nginx/sites-available/default <<END
     server_name  _;
-    access_log  /var/log/nginx/default.log;
-    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
-    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+    access_log  /var/log/nginx/default.log main;
+    ssl_ciphers "ALL:!aNULL:!RC4";
     return 444;
 }
 END
@@ -291,17 +378,30 @@ if (\$http_user_agent ~* "(Morfeus|larbin|ZmEu|Toata|Huawei|talktalk)" ) {
 	return 444;
 }
 END
-	if [ -e /etc/nginx/disallow-agent.conf ]; then
-		rm /etc/nginx/disallow-agent.conf
-	fi
-	sed -i """/worker_processes/cworker_processes "$CPUCORES";""" /etc/nginx/nginx.conf
-	invoke-rc.d nginx restart
-	chown www-data:adm /var/log/nginx/*
+#   delete deprecated file
+    rm -f /etc/nginx/disallow-agent.conf
+
+    invoke-rc.d nginx restart
+    chown www-data:adm /var/log/nginx/*
+    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
+}
+
+function install_nginx-upstream {
+    wget -O - http://nginx.org/keys/nginx_signing.key | apt-key add -
+    cat > /etc/apt/sources.list.d/nginx.list <<END
+deb http://nginx.org/packages/debian/ wheezy nginx
+#deb-src http://nginx.org/packages/debian/ wheezy nginx
+END
+    apt-get update
+    apt-get -y remove nginx nginx-full nginx-common
+    apt-get install nginx
+    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
 }
 
 function install_apache {
     check_install apache "apache"
 }
+
 function install_lighttpd {
     check_install lighttpd "lighttpd"
     if [ ! -e /etc/lighttpd/conf-enabled/10-accesslog.conf ]; then
@@ -455,7 +555,7 @@ END
 User-agent: *
 Disallow: /
 END
-if [ "SERVER" = "nginx" ];then
+if [ "$SERVER" = "nginx" ];then
    # Setting up Nginx mapping
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
@@ -498,6 +598,12 @@ END
 	root /var/www/$2;
 	index index.html;
 }
+END
+    cat > "/etc/nginx/myips.conf" <<END
+allow 127.0.0.1;
+#deny all; # Used to restrict access to yourself for non-public areas of websites
+# Uncomment the above line, comment the following line and add your allowed ip subnets after allow 127.0.0.1
+allow all;
 END
 
     ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
@@ -789,7 +895,7 @@ END
 END
 	if [ -e /etc/nginx/myips.conf ]; then
     	    cat >> "/etc/nginx/sites-available/$1.conf" <<END
-	location /wp-admin {
+    location /wp-admin {
         include myips.conf;
         try_files \$uri \$uri/ /index.php;
     }
@@ -797,7 +903,7 @@ END
 END
 	fi
 	cat >> "/etc/nginx/sites-available/$1.conf" <<END
-	location ~ \.php$ {
+    location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         #NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         include fastcgi_params;
@@ -868,11 +974,6 @@ END
 
 #	ssl_certificate ssl_keys/$2.crt;
 #	ssl_certificate_key ssl_keys/$2.key;
-#	ssl_session_timeout  10m;
-#	ssl_session_cache shared:SSL:10m;
-#	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
-#	ssl_ciphers ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:EDH-DSS-DES-CBC3-SHA:!MD5:!aNULL:!EDH;
-#	ssl_prefer_server_ciphers   on;
 
 	location = /favicon.ico {
 		return 204;
@@ -1116,9 +1217,20 @@ root            -       stack           256
 END
         fi
     fi
-	check_install locales "locales"
+    check_install dialog "dialog"
+    check_install locales "locales"
     dpkg-reconfigure locales
     apt-get -q -y upgrade
+    check_install tzdata "tzdata"
+    dpkg-reconfigure tzdata
+    install_dash
+    install_syslogd
+    install_dropbear
+    echo -n "To change root password press y then [ENTER]: "
+    read -e reply
+    if [ "$reply" = "y" ]; then
+        passwd
+    fi
 }
 
 #                                      OPTIONAL
@@ -1152,7 +1264,6 @@ function custom {
     if [ -z "`grep 'dpkg --get-selections' /etc/crontab`" ];then
 	    echo "0 10 * * * root dpkg --get-selections >/root/dpkg-selections" >> /etc/crontab
     fi
-    sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
     sed -i "s/weekly/daily/" /etc/logrotate.conf
     sed -i "s/rotate 4/rotate 1/" /etc/logrotate.conf
     chown www-data:adm /var/log/nginx/*.log
@@ -1162,7 +1273,7 @@ import datetime
 import smtplib
 def smtp():
     host="`hostname -f`"
-    to = '$EMAIL'
+    to = 'root'
     mail_user = 'bootmail@%s' % (host)
     smtpserver = smtplib.SMTP("127.0.0.1",25)
     smtpserver.ehlo()
@@ -1215,7 +1326,7 @@ fi
 if [ -z "`grep 'SERVER' ./setup-debian.conf`" ]; then
     echo SERVER=nginx \# Values are nginx or lighttpd >> ./setup-debian.conf
 fi
-if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" ]; then
+if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" ]; then
     apt-get -q -y update
     check_install nano "nano"
 fi
@@ -1237,16 +1348,6 @@ case "$1" in
 all)
     remove_unneeded
     update_upgrade
-    check_install tzdata "tzdata"
-    dpkg-reconfigure tzdata
-    install_dash
-    install_syslogd
-    install_dropbear
-    echo -n "To change root password press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        passwd
-    fi
     install_postfix
     install_mysql
     if [ "$SERVER" = "apache" ]; then
@@ -1278,6 +1379,14 @@ nginx)
         install_nginx
     fi
     ;;
+nginx-upstream)
+    if [ -z "`which "nginx" 2>/dev/null`" ]; then
+        print_warn "Nginx has to be installed as this is an upgrade only."
+    else
+        install_nginx-upstream
+    fi
+    ;;
+
 #apache)
 #    install_apache
 #    ;;
@@ -1296,16 +1405,6 @@ domain)
 system)
     remove_unneeded
     update_upgrade
-    check_install tzdata "tzdata"
-    dpkg-reconfigure tzdata
-    install_dash
-    install_syslogd
-    install_dropbear
-    echo -n "To change root password press y then [ENTER]: "
-    read -e reply
-    if [ "$reply" = "y" ]; then
-        passwd
-    fi
     ;;
 custom)
     custom $2
@@ -1318,7 +1417,7 @@ friendica)
     ;;
 *)    echo 'Usage:' `basename $0` '[option]'
     echo 'Available option:'
-    for option in system postfix iptables mysql lighttpd nginx php cgi domain wordpress friendica custom
+    for option in system postfix iptables mysql lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom
     do
         echo '  -' $option
     done
