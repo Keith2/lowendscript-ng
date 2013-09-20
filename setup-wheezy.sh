@@ -200,18 +200,106 @@ END
 function install_nginx {
     check_install nginx "nginx"
 
-    # Need to increase the bucket size for Debian 5.
-    cat > /etc/nginx/conf.d/lowendbox.conf <<END
-server_names_hash_bucket_size 64;
-server_tokens off;
-ignore_invalid_headers on;
-log_format  main  '\$remote_addr \$host \$remote_user [\$time_local] "\$request" '
-               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$gzip_ratio"';
-access_log /var/log/nginx/access.log main;
-upstream php {
-	server unix:/var/run/php5-fpm.sock;
-}
+    if [ ! -d /etc/nginx/ssl_keys ]; then
+        mkdir /etc/nginx/ssl_keys
+    fi
+    if [ ! -e /etc/nginx/ssl_keys/dhparam-1024.pem ]; then
+        openssl dhparam -out /etc/nginx/ssl_keys/dhparam-1024.pem 1024
+    fi
+
+# Create a ssl default ssl certificate. This is an ecc certificate.
+# There could be problems with older browsers recognising it, if reused.
+    if [ ! -e /etc/nginx/ssl_keys/default.ec.crt ]; then
+	cat > /etc/nginx/ssl_keys/default.ec.conf <<END
+[req]
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+countryName         = Country Name (2 letter code)
+countryName_default     = XX
+countryName_min         = 2
+countryName_max         = 2
+
+commonName          = Common Name (eg, YOUR name)
+commonName_default  = Default CA
+commonName_max          = 64
 END
+	openssl ecparam -out /etc/nginx/ssl_keys/default.ec.key -name secp521r1 -genkey
+	openssl req -new -key /etc/nginx/ssl_keys/default.ec.key -x509 -nodes -days 3650 -out /etc/nginx/ssl_keys/default.ec.crt -config /etc/nginx/ssl_keys/default.ec.conf -batch
+    fi
+# Need to increase the bucket size for Debian 5.
+    cat > /etc/nginx/nginx.conf <<END
+user www-data;
+worker_processes $CPUCORES;
+pid /run/nginx.pid;
+
+events {
+	worker_connections 768;
+	# multi_accept on;
+}
+
+http {
+
+	##
+	# Basic Settings
+	##
+
+	sendfile on;
+	tcp_nopush on;
+	tcp_nodelay on;
+	keepalive_timeout 65;
+	types_hash_max_size 2048;
+	server_names_hash_bucket_size 64;
+	ignore_invalid_headers on;
+	log_format  main  '\$remote_addr \$host \$server_port \$remote_user [\$time_local] "\$request" '
+               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for"';
+	upstream php {
+		server unix:/var/run/php5-fpm.sock;
+	}
+
+	# server_name_in_redirect off;
+
+	include mime.types;
+	default_type application/octet-stream;
+
+	##
+	# Logging Settings
+	##
+
+	access_log /var/log/nginx/access.log main;
+	error_log /var/log/nginx/error.log error;
+
+	##
+	# Gzip Settings
+	##
+
+	gzip on;
+	gzip_disable "msie6";
+	gzip_min_length 1400;
+	gzip_vary on;
+	gzip_proxied any;
+	gzip_comp_level 6;
+	gzip_buffers 16 8k;
+	gzip_http_version 1.1;
+	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+	ssl_certificate ssl_keys/default.ec.crt;
+	ssl_certificate_key ssl_keys/default.ec.key;
+	ssl_dhparam ssl_keys/dhparam-1024.pem;
+	ssl_session_timeout 5m;
+	ssl_session_cache shared:SSL:10m;
+	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+	ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES256-SHA:DHE-RSA-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:DHE-RSA-CAMELLIA128-SHA:HIGH:!aNULL;
+	ssl_prefer_server_ciphers on;
+
+	include /etc/nginx/conf.d/*.conf;
+	include /etc/nginx/sites-enabled/*;
+}
+
+END
+
+# Remove deprecated file
+    rm -f /etc/nginx/conf.d/lowendbox.conf
     cat > /etc/nginx/sites-available/default <<END
 server {
 END
@@ -237,9 +325,8 @@ END
     fi
     cat >> /etc/nginx/sites-available/default <<END
     server_name  _;
-    access_log  /var/log/nginx/default.log;
-    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
-    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+    access_log  /var/log/nginx/default.log main;
+    ssl_ciphers "ALL:!aNULL:!RC4";
     return 444;
 }
 END
@@ -294,7 +381,6 @@ END
 #   delete deprecated file
     rm -f /etc/nginx/disallow-agent.conf
 
-    sed -i """/worker_processes/cworker_processes "$CPUCORES";""" /etc/nginx/nginx.conf
     invoke-rc.d nginx restart
     chown www-data:adm /var/log/nginx/*
     sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
@@ -888,11 +974,6 @@ END
 
 #	ssl_certificate ssl_keys/$2.crt;
 #	ssl_certificate_key ssl_keys/$2.key;
-#	ssl_session_timeout  10m;
-#	ssl_session_cache shared:SSL:10m;
-#	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
-#	ssl_ciphers ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:EDH-DSS-DES-CBC3-SHA:!MD5:!aNULL:!EDH;
-#	ssl_prefer_server_ciphers   on;
 
 	location = /favicon.ico {
 		return 204;
