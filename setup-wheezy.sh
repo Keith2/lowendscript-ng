@@ -1206,6 +1206,8 @@ function remove_unneeded {
         invoke-rc.d sendmail stop
         check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
     fi
+# Remove deprecated file
+    rm -f /etc/apt/sources.list.d/dotdeb.list
 }
 
 function update_upgrade {
