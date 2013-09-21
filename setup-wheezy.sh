@@ -87,7 +87,7 @@ function install_dash {
 
 function install_dropbear {
     check_install ssh "ssh"
-    check_install dropbear "dropbear"
+    check_remove dropbear "dropbear"
     check_install /usr/sbin/xinetd "xinetd"
 
     # Disable SSH
@@ -96,19 +96,21 @@ function install_dropbear {
 
     if [ -z $SSH_PORT ];then
         SSH_PORT=22
-        print_info "Dropbear port set to 22"
+        print_info "SSH port set to 22"
     else
         if [ $SSH_PORT -le 65535 ]; then
-            print_info "Dropbear port set to $SSH_PORT"
+            print_info "SSH port set to $SSH_PORT"
         else
             SSH_PORT=22
-            print_warn "Dropbear port changed to 22"
+            print_warn "SSH port changed to 22"
         fi
     fi
-    # Enable dropbear to start. We are going to use xinetd as it is just
+# remove deprecated file
+    rm -f /etc/xinetd.d/dropbear
+    # Enable ssh start. We are going to use xinetd as it is just
     # easier to configure and might be used for other things.
-    cat > /etc/xinetd.d/dropbear <<END
-service dropbear
+    cat > /etc/xinetd.d/openssh <<END
+service openssh
 {
     socket_type     = stream
     wait            = no
@@ -117,12 +119,13 @@ service dropbear
     flags           = $FLAGS
     user            = root
     protocol        = tcp
-    server          = /usr/sbin/dropbear
+    server          = /usr/sbin/sshd
     server_args     = -i
     disable         = no
 }
 END
     invoke-rc.d xinetd restart
+    ssh-keygen -t ecdsa
 }
 
 function install_postfix {
