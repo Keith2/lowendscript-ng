@@ -1377,11 +1377,7 @@ mysql)
     install_mysql
     ;;
 nginx)
-    if [ -z "`which "postfix" 2>/dev/null`" ]; then
-        print_warn "Postfix has to be installed as nginx uses Postfix's ssl cert"
-    else
-        install_nginx
-    fi
+    install_nginx
     ;;
 nginx-upstream)
     if [ -z "`which "nginx" 2>/dev/null`" ]; then
