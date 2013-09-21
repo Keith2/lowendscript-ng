@@ -125,7 +125,7 @@ service openssh
 }
 END
     invoke-rc.d xinetd restart
-    ssh-keygen -t ecdsa
+    ssh-keygen -t ecdsa -b 521
 }
 
 function install_postfix {
