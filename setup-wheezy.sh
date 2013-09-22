@@ -125,7 +125,12 @@ service openssh
 }
 END
     invoke-rc.d xinetd restart
-    ssh-keygen -t ecdsa -b 521
+    if [ ! -e /root/.ssh/id_ecdsa.pub ]; then
+        ssh-keygen -t ecdsa -b 521
+    fi
+    if [ ! -e /etc/ssh/ssh_host_ecdsa_key.pub ]; then
+        ssh-keygen -t ecdsa -N '' -f /etc/ssh/ssh_host_ecdsa_key -b 521
+    fi
 }
 
 function install_postfix {
@@ -1214,6 +1219,10 @@ function update_upgrade {
     # Run through the apt-get update/upgrade first. This should be done before
     # we try to install any package
 
+    cat > /etc/apt/sources.list.d/backports.list <<END
+deb http://ftp.debian.org/debian/ wheezy-backports main
+deb-src http://ftp.debian.org/debian/ wheezy-backports main
+END
     apt-get -q -y update
     if [ "$OPENVZ" = 'yes' ]; then
         if [ -z "`grep 'ulimit -s 256' /etc/init.d/rc`" ];then
