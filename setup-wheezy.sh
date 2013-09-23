@@ -589,7 +589,7 @@ END
     if [ "$FLAGS" = "ipv6" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	listen [::]:80;
-	server_name $2 ipv4.$2 ipv6.$2;
+	server_name $2;
 END
 	else
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
