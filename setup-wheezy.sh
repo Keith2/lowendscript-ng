@@ -194,6 +194,16 @@ END
     chmod 600 ~/.my.cnf
 }
 
+function install_percona {
+    apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
+    cat > /etc/apt/sources.list.d/percona.list <<END
+deb http://repo.percona.com/apt wheezy main
+#deb-src http://repo.percona.com/apt wheezy main
+END
+    apt-get update
+    apt-get install percona-server-server-5.5
+}
+
 function install_nginx {
     check_install nginx "nginx"
 
@@ -1333,7 +1343,7 @@ fi
 if [ -z "`grep 'SERVER' ./setup-debian.conf`" ]; then
     echo SERVER=nginx \# Values are nginx or lighttpd >> ./setup-debian.conf
 fi
-if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" ]; then
+if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
     apt-get -q -y update
     check_install nano "nano"
 fi
@@ -1379,6 +1389,14 @@ iptables)
 mysql)
     install_mysql
     ;;
+percona)
+    if [ -z "`which "mysql" 2>/dev/null`" ]; then
+        print_warn "MySQL has to be installed as this is an upgrade only."
+    else
+        install_percona
+    fi
+    ;;
+
 nginx)
     install_nginx
     ;;
@@ -1389,7 +1407,6 @@ nginx-upstream)
         install_nginx-upstream
     fi
     ;;
-
 #apache)
 #    install_apache
 #    ;;
@@ -1420,7 +1437,7 @@ friendica)
     ;;
 *)    echo 'Usage:' `basename $0` '[option]'
     echo 'Available option:'
-    for option in system postfix iptables mysql lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom
+    for option in system postfix iptables mysql percona lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom
     do
         echo '  -' $option
     done
