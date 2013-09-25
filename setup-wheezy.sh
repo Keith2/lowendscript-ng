@@ -68,17 +68,6 @@ function get_password() {
     echo ${password:0:13}
 }
 
-#function dotdeb {
-#    if [ ! -f /etc/apt/sources.list.d/dotdeb.list ];then
-#         cat > /etc/apt/sources.list.d/dotdeb.list <<END
-#deb http://packages.dotdeb.org stable all
-#deb-src http://packages.dotdeb.org stable all
-#END
-#        wget -O - http://www.dotdeb.org/dotdeb.gpg | apt-key add -
-#	print_info "dotdeb repository now being used"
-#    fi
-#}
-
 function install_dash {
     check_install dash "dash"
     rm -f /bin/sh
@@ -580,7 +569,7 @@ END
 	fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name  www.$2;
-	rewrite ^(.*) http://$2\$1 permanent;
+        return 301 http://$2\$request_uri;
 }
 
 server {
