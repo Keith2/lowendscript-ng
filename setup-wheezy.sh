@@ -135,31 +135,19 @@ nobody:        $EMAIL
 mail:          $EMAIL
 END
     newaliases
-    if [ -z "`grep 'smtpd_tls_protocols' /etc/postfix/main.cf`" ];then
-        sed -i "s/smtpd_use_tls=yes/smtpd_use_tls=yes\\nsmtpd_tls_protocols = !SSLv2/" /etc/postfix/main.cf
-    else
-        sed -i "/smtpd_tls_protocols/csmtpd_tls_protocols = !SSLv2" /etc/postfix/main.cf
-    fi
-    if [ -z "`grep 'smtpd_tls_received_header' /etc/postfix/main.cf`" ];then
-        sed -i "s/smtpd_use_tls=yes/smtpd_use_tls=yes\\nsmtpd_tls_received_header = yes/" /etc/postfix/main.cf
-    else
-        sed -i "/smtpd_tls_received_header/csmtpd_tls_received_header = yes" /etc/postfix/main.cf
-    fi
-    if [ -z "`grep 'smtpd_tls_loglevel' /etc/postfix/main.cf`" ];then
-        sed -i "s/smtpd_use_tls=yes/smtpd_use_tls=yes\\nsmtpd_tls_loglevel = 2/" /etc/postfix/main.cf
-    else
-        sed -i "/smtpd_tls_loglevel/csmtpd_tls_loglevel = 2" /etc/postfix/main.cf
-    fi
-    if [ -z "`grep 'smtpd_tls_security_level' /etc/postfix/main.cf`" ];then
-        sed -i "s/smtpd_use_tls=yes/smtpd_use_tls=yes\\nsmtpd_tls_security_level = may/" /etc/postfix/main.cf
-    else
-        sed -i "/smtpd_tls_security_level/csmtpd_tls_security_level = may" /etc/postfix/main.cf
-    fi
-    if [ -z "`grep 'smtpd_tls_auth_only' /etc/postfix/main.cf`" ];then
-        sed -i "s/smtpd_use_tls=yes/smtpd_use_tls=yes\\nsmtpd_tls_auth_only = yes/" /etc/postfix/main.cf
-    else
-        sed -i "/smtpd_tls_auth_only/csmtpd_tls_auth_only = yes" /etc/postfix/main.cf
-    fi
+    openssl gendh -out /etc/postfix/dh_512.pem -2 512
+    openssl gendh -out /etc/postfix/dh_1024.pem -2 1024
+    postconf -e "smtpd_tls_dh1024_param_file = /etc/postfix/dh_1024.pem"
+    postconf -e "smtpd_tls_dh512_param_file = /etc/postfix/dh_512.pem"
+    postconf -e "smtpd_tls_eecdh_grade = strong"
+    postconf -e "tls_preempt_cipherlist = yes"
+    postconf -e "smtpd_tls_loglevel = 1"
+    postconf -e "smtp_tls_loglevel = 1"
+    postconf -e "smtpd_tls_protocols = !SSLv2"
+    postconf -e "smtp_tls_protocols = !SSLv2"
+    postconf -e "smtpd_tls_received_header = yes"
+    postconf -e "smtpd_tls_security_level = may"
+    postconf -e "smtpd_tls_auth_only = yes"
     service postfix reload
 }
 
