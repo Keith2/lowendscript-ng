@@ -131,7 +131,7 @@ abuse:         $EMAIL
 spam:          $EMAIL
 hostmaster:    $EMAIL
 root:          $EMAIL
-nobody:        $EMAIL
+nobody:        /dev/null
 mail:          $EMAIL
 END
     newaliases
@@ -143,10 +143,11 @@ END
     postconf -e "tls_preempt_cipherlist = yes"
     postconf -e "smtpd_tls_loglevel = 1"
     postconf -e "smtp_tls_loglevel = 1"
-    postconf -e "smtpd_tls_protocols = !SSLv2"
-    postconf -e "smtp_tls_protocols = !SSLv2"
+    postconf -e "smtpd_tls_protocols = !SSLv2, !SSLv3"
+    postconf -e "smtp_tls_protocols = !SSLv2, !SSLv3"
     postconf -e "smtpd_tls_received_header = yes"
     postconf -e "smtpd_tls_security_level = may"
+    postconf -e "smtp_tls_security_level = may"
     postconf -e "smtpd_tls_auth_only = yes"
     service postfix reload
 }
