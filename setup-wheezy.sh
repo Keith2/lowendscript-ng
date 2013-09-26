@@ -1209,7 +1209,7 @@ function update_upgrade {
 
     cat > /etc/apt/sources.list.d/backports.list <<END
 deb http://ftp.debian.org/debian/ wheezy-backports main
-deb-src http://ftp.debian.org/debian/ wheezy-backports main
+#deb-src http://ftp.debian.org/debian/ wheezy-backports main
 END
     apt-get -q -y update
     if [ "$OPENVZ" = 'yes' ]; then
