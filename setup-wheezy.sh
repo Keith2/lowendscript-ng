@@ -74,6 +74,30 @@ function install_dash {
     ln -s dash /bin/sh
 }
 
+function add_user {
+	if [ -z `grep $USER: /etc/passwd` ]; then
+		useradd -m $USER
+		cat >> /etc/sudoers.d/users <<END
+$USER   ALL=(ALL:ALL) ALL
+END
+		if [ ! -d /home/$USER/Maildir ]; then
+			mkdir /home/$USER/Maildir
+		fi
+        if [ ! -d /home/$USER/Maildir/cur ]; then
+            mkdir /home/$USER/Maildir/cur
+        fi
+        if [ ! -d /home/$USER/Maildir/tmp ]; then
+            mkdir /home/$USER/Maildir/tmp
+        fi
+        if [ ! -d /home/$USER/Maildir/new ]; then
+            mkdir /home/$USER/Maildir/new
+        fi
+		chown -R $USER:$USER /home/$USER/Maildir
+		echo Set password for $USER
+		passwd $USER
+	fi
+}
+
 function install_dropbear {
     check_install ssh "ssh"
     check_remove dropbear "dropbear"
@@ -123,7 +147,7 @@ END
 }
 
 function install_postfix {
-    check_install postfix "postfix"
+    check_install postfix "postfix procmail"
     cat > /etc/aliases <<END
 postmaster:    $EMAIL
 MAILER-DAEMON: $EMAIL
@@ -135,6 +159,7 @@ nobody:        /dev/null
 mail:          $EMAIL
 END
     newaliases
+	postconf -e "mailbox_command = /usr/bin/procmail -a "$EXTENSION" DEFAULT=$HOME/Maildir/"
     openssl gendh -out /etc/postfix/dh_512.pem -2 512
     openssl gendh -out /etc/postfix/dh_1024.pem -2 1024
     postconf -e "smtpd_tls_dh1024_param_file = /etc/postfix/dh_1024.pem"
@@ -938,6 +963,7 @@ function install_friendica {
 	check_install "friendica dependencies" "git php5-imap php5-mcrypt"
 	if [ ! -d /var/www ]; then
 		mkdir /var/www
+		chown www-data:www-data /var/www
 	fi
 	cd /var/www
 	if [ -d friendica ]; then
@@ -946,25 +972,24 @@ function install_friendica {
 	if [ ! "$3" = "redo" ]; then
 		git clone https://github.com/friendica/friendica.git
 		mv friendica $2
-		chown www-data:www-data $2
+		chown -R www-data:www-data $2
 		cd $2
 		git clone https://github.com/friendica/friendica-addons.git
 		mv friendica-addons addon
 		chown www-data:www-data addon
 	fi
 	cd /var/www/$2
-
     if [ "$SERVER" = "nginx" ]; then
 		cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
 	listen 80;
-#	listen 443 ssl;
+	listen 443 ssl;
 END
     fi
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	listen [::]:80;
-#	listen [::]:443 ssl;
+	listen [::]:443 ssl;
 END
 	fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
@@ -972,7 +997,9 @@ END
 	access_log /var/log/nginx/$2.log main;
 	root /var/www/$2;
 
-#	ssl_certificate ssl_keys/$2.crt;
+    ssl_certificate ssl_keys/default.pem;
+    ssl_certificate_key ssl_keys/default.key;
+#	ssl_certificate ssl_keys/$2.pem;
 #	ssl_certificate_key ssl_keys/$2.key;
 
 	location = /favicon.ico {
@@ -1067,7 +1094,6 @@ END
 	sed -i "/\['sitename'\]/c\$a->config['sitename'] = '$2';" .htconfig.php
 	dbname=`echo $2 | tr . _`
 	echo database is $dbname
-#	userid=`substr($dbname,0,15)
 	echo $userid;
 	# MySQL userid cannot be more than 15 characters long
 	userid="${dbname:0:15}"
@@ -1223,6 +1249,8 @@ root            -       stack           256
 END
         fi
     fi
+	check_install sudo "sudo"
+	add_user
     check_install dialog "dialog"
     check_install locales "locales"
     dpkg-reconfigure locales
@@ -1313,23 +1341,29 @@ INTERFACE=all # Options are all for a dual stack ipv4/ipv6 server
 #                           ipv4 for an ipv4 server
 #                           ipv6 for an ipv6 server
 #               Defaults to ipv4 only if incorrect
-EMAIL=changeme@example.com # mail user or an external email address
+USER=changeme
+EMAIL=\$USER@[127.0.0.1] # mail user or an external email address
 OPENVZ=yes # Values are yes, no or gnome
 DISTRIBUTION=wheezy # Does not do anything yet, left in for jessie
 SERVER=nginx # Values are nginx or lighttpd
+CPUCORES=detect # Options are detect or n where n = number of cpu cores to be used
+MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available
 END
 fi
 
-if [ -z "`grep 'CPUCORES' ./setup-debian.conf`" ]; then
+if [ -z "`grep 'USER=' ./setup-debian.conf`" ]; then
+	sed -i "s/EMAIL=/USER=changeme\\nEMAIL=/" ./setup-debian.conf
+fi
+if [ -z "`grep 'CPUCORES=' ./setup-debian.conf`" ]; then
     echo CPUCORES=detect \# Options are detect or n where n = number of cpu cores to be used >> ./setup-debian.conf
 fi
-if [ -z "`grep 'MEMORY' ./setup-debian.conf`" ]; then
+if [ -z "`grep 'MEMORY=' ./setup-debian.conf`" ]; then
 	echo MEMORY=128 \# values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available >> ./setup-debian.conf
 fi
-if [ -z "`grep 'DISTRIBUTION' ./setup-debian.conf`" ]; then
+if [ -z "`grep 'DISTRIBUTION=' ./setup-debian.conf`" ]; then
     echo DISTRIBUTION=wheezy \# Values are nginx or lighttpd >> ./setup-debian.conf
 fi
-if [ -z "`grep 'SERVER' ./setup-debian.conf`" ]; then
+if [ -z "`grep 'SERVER=' ./setup-debian.conf`" ]; then
     echo SERVER=nginx \# Values are nginx or lighttpd >> ./setup-debian.conf
 fi
 if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
@@ -1350,6 +1384,10 @@ if [ "$INTERFACE" = "all" -o "$INTERFACE" = "ipv6" ]; then
 else
     FLAGS=ipv4
 fi
+
+if [ "$USER" = "changeme" ]; then
+	die "User changeme is not allowed"
+fi
 case "$1" in
 all)
     remove_unneeded
@@ -1361,7 +1399,7 @@ all)
     elif [ "$SERVER" = "lighttpd" ]; then
 	install_lighttpd
     else
-        install_nginx #nginx is installed after postfix as it uses postfix's ssl cert
+        install_nginx
     fi
     install_php
     if [ "$SERVER" = "nginx" ]; then
@@ -1370,6 +1408,7 @@ all)
 #    install_iptables $SSH_PORT
     ;;
 postfix)
+    add_user
     install_postfix
     ;;
 iptables)
