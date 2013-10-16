@@ -983,13 +983,13 @@ function install_friendica {
 		cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
 	listen 80;
-	listen 443 ssl;
+	listen 443 ssl spdy;
 END
     fi
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	listen [::]:80;
-	listen [::]:443 ssl;
+	listen [::]:443 ssl spdy;
 END
 	fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
