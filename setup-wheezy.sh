@@ -570,11 +570,11 @@ function install_domain {
 <meta name='keywords' content=$2>
 <meta http-equiv='Content-type' content='text/html;charset=UTF-8'>
 <meta name='ROBOTS' content='INDEX, FOLLOW'>
+</head><body>
 <h1>It works!</h1>
 <p>This is the default web page for $2</p>
 <p>The web server software is running but no content has been added, yet.</p>
-</head><body>
-</pre></body></html>
+</body></html>
 END
     cat > "/var/www/$2/robots.txt" <<END
 User-agent: *
@@ -1003,9 +1003,10 @@ END
 #	ssl_certificate_key ssl_keys/$2.key;
 
 	location = /favicon.ico {
-		return 204;
+		expires max;
 		log_not_found off;
 		access_log off;
+		return 204;
 	}
 
 	location = /robots.txt {
