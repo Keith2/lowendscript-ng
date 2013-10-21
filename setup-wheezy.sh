@@ -450,11 +450,7 @@ function install_lighttpd {
 }
 
 function install_php {
-    if [ "$DISTRIBUTION" = "wheezy" ]; then
-        check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php-apc"
-    else
-        check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php5-apc php5-suhosin"
-    fi
+    check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php-apc"
     if [ "$SERVER" = "nginx" ]; then
 	cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
