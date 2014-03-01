@@ -972,7 +972,7 @@ function install_friendica {
 		cd $2
 		git clone https://github.com/friendica/friendica-addons.git
 		mv friendica-addons addon
-		chown www-data:www-data addon
+		chown www-data:www-data addon view/smarty3
 	fi
 	cd /var/www/$2
     if [ "$SERVER" = "nginx" ]; then
