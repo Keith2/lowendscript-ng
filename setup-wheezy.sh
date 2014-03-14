@@ -138,12 +138,8 @@ service openssh
 }
 END
     invoke-rc.d xinetd restart
-    if [ ! -e /root/.ssh/id_ecdsa.pub ]; then
-        ssh-keygen -t ecdsa -b 521
-    fi
-    if [ ! -e /etc/ssh/ssh_host_ecdsa_key.pub ]; then
-        ssh-keygen -t ecdsa -N '' -f /etc/ssh/ssh_host_ecdsa_key -b 521
-    fi
+    ssh-keygen -t rsa -b 4096
+    ssh-keygen -t rsa -N '' -f /etc/ssh/ssh_host_rsa_key -b 4096
 }
 
 function install_postfix {
