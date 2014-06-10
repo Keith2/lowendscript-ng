@@ -20,6 +20,16 @@ function check_remove {
     fi
 }
 
+function check_upgrade {
+    if [ -z "`which "$1" 2>/dev/null`" ]
+    then
+        print_warn "$2 not installed for $1"
+    else
+		DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y install $2
+        print_warn "$2 updrade"
+    fi
+}
+
 function check_sanity {
     # Do some sanity checking.
     if [ $(/usr/bin/id -u) != "0" ]
@@ -446,7 +456,7 @@ function install_lighttpd {
 }
 
 function install_php {
-    check_install php5-fpm "php5-fpm php5-cli php5-mysql php5-cgi php5-gd php5-curl php-apc"
+    check_install php5-fpm "php5-fpm php5-cli php5-mysqlnd php5-cgi php5-gd php5-curl php-apc"
     if [ "$SERVER" = "nginx" ]; then
 	cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
@@ -1456,9 +1466,12 @@ wordpress)
 friendica)
     install_friendica $1 $2 $3
     ;;
+upgrade)
+    check_upgrade php5-fpm "php5-mysqlnd"
+    ;;
 *)    echo 'Usage:' `basename $0` '[option]'
     echo 'Available option:'
-    for option in system postfix iptables mysql percona lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom
+    for option in system postfix iptables mysql percona lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom upgrade
     do
         echo '  -' $option
     done
