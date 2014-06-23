@@ -180,6 +180,7 @@ END
     postconf -e "smtpd_tls_security_level = may"
     postconf -e "smtp_tls_security_level = may"
     postconf -e "smtpd_tls_auth_only = yes"
+    postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
     service postfix reload
 }
 
@@ -1468,6 +1469,10 @@ friendica)
     ;;
 upgrade)
     check_upgrade php5-fpm "php5-mysqlnd"
+    if [ -e /etc/postfix/main.cf ]; then
+		postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
+		service postfix restart
+	fi
     ;;
 *)    echo 'Usage:' `basename $0` '[option]'
     echo 'Available option:'
