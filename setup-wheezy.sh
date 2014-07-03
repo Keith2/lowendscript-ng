@@ -332,6 +332,16 @@ END
 
 # Remove deprecated file
     rm -f /etc/nginx/conf.d/lowendbox.conf
+
+# Make sure sites-available & sites enabled exist
+# Should only be needed when installing a cpu optimised nginx from my own repository.
+	if [ ! -d /etc/nginx/sites-available ]; then
+		mkdir /etc/nginx/sites-available
+	fi
+	if [ ! -d /etc/nginx/sites-enabled ]; then
+		mkdir /etc/nginx/sites-enabled
+	fi
+
     cat > /etc/nginx/sites-available/default <<END
 server {
 END
