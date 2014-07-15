@@ -3,7 +3,7 @@
 function check_install {
     if [ -z "`which "$1" 2>/dev/null`" ]
     then
-        DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y install $2
+        DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y $3 install $2
         print_info "$2 installed for $1"
     else
         print_warn "$2 already installed"
@@ -25,7 +25,7 @@ function check_upgrade {
     then
         print_warn "$2 not installed for $1"
     else
-		DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y install $2
+	DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y $3 install $2
         print_warn "$2 updrade"
     fi
 }
@@ -109,7 +109,7 @@ END
 }
 
 function install_dropbear {
-    check_install ssh "ssh"
+    check_upgrade ssh "ssh" "-t wheezy-backports"
     check_remove dropbear "dropbear"
     check_install /usr/sbin/xinetd "xinetd"
 
@@ -148,12 +148,18 @@ service openssh
 }
 END
     invoke-rc.d xinetd restart
-    ssh-keygen -t rsa -b 4096
-    ssh-keygen -t rsa -N '' -f /etc/ssh/ssh_host_rsa_key -b 4096
+    ssh-keygen -f /root/.ssh/id_ed25519 -N "" -t ed25519
+    ssh-keygen -f /etc/ssh/ssh_host_ed25519_key -N "" -t ed25519
+    sed -i "/ssh_host_dsa_key/c#HostKey \/etc\/ssh\/ssh_host_dsa_key/" /etc/ssh/sshd_config
+    sed -i "/ssh_host_rsa_key/c#HostKey \/etc\/ssh\/ssh_host_rsa_key/" /etc/ssh/sshd_config
+    sed -i "/ssh_host_ecdsa_key/c#HostKey \/etc\/ssh\/ssh_host_ecdsa_key/" /etc/ssh/sshd_config
+    if [ -z "`grep 'ssh_host_ed25519_key' /etc/ssh/sshd_config`" ];then
+        echo "HostKey /etc/ssh/ssh_host_ed25519_key" >>/etc/ssh/sshd_config
+    fi
 }
 
 function install_postfix {
-    check_install postfix "postfix procmail"
+    check_install postfix "postfix procmail" "-t wheezy-backports"
     cat > /etc/aliases <<END
 postmaster:    $EMAIL
 MAILER-DAEMON: $EMAIL
@@ -1285,7 +1291,7 @@ END
 
 #Custom commands go here, mine are included as examples delete as required
 function custom {
-    check_install keith "rsync autossh apticron dnsutils mc"
+    check_install keith "rsync autossh apticron dnsutils mc python logrotate apt-utils"
     if [ "$OPENVZ" != 'gnome' ]; then
         check_remove fancontrol fancontrol
         check_remove dbus-daemon dbus
@@ -1299,11 +1305,13 @@ function custom {
 #        sed -i "s/# set tabsize 8/set tabsize 4/" /etc/nanorc
 #        print_info "set tabsize 4 in /etc/nanorc"
 #    fi
-    if [ -n "`grep '#   Port 22' /etc/ssh/ssh_config`" ];then
-        sed -i "s/#   Port 22/   Port $SSH_PORT/" /etc/ssh/ssh_config
-		print_info "default outgoing ssh port set to $SSH_PORT"
-    else
-        print_warn "/etc/ssh/ssh_config already changed"
+    sed -i "/Port 22/c\ \ \ Port 13022" /etc/ssh/ssh_config
+    sed -i "/HashKnownHosts/c\ \ \ HashKnownHosts no" /etc/ssh/ssh_config
+    if [ -z "`grep 'ControlMaster' /etc/ssh/ssh_config`" ];then
+        echo "   ControlMaster auto" >>/etc/ssh/ssh_config
+    fi
+    if [ -z "`grep 'ControlPath' /etc/ssh/ssh_config`" ];then
+        echo "   ControlPath ~/.ssh/master-%r@%h:%p" >>/etc/ssh/ssh_config
     fi
     if [ -z "`grep 'MAILTO=' /etc/crontab`" ];then
         sed -i "s/SHELL=\/bin\/sh/SHELL=\/bin\/sh\\nMAILTO=root/" /etc/crontab
