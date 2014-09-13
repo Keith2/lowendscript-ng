@@ -26,7 +26,7 @@ function check_upgrade {
         print_warn "$2 not installed for $1"
     else
 	DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends -q -y $3 install $2
-        print_warn "$2 updrade"
+        print_warn "$2 upgrade"
     fi
 }
 
@@ -1487,7 +1487,7 @@ upgrade)
 		postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
 		service postfix restart
 	fi
-    if [ -e /etc/postfix/main.cf ]; then
+    if [ -e /etc/php5/conf.d/lowendscript.ini ]; then
 		rm -f /etc/php5/conf.d/lowendscript.ini
     fi
 	if [ -e /etc/php5/mods-available/apc.ini ]; then
