@@ -229,6 +229,7 @@ deb http://repo.percona.com/apt wheezy main
 #deb-src http://repo.percona.com/apt wheezy main
 END
     apt-get update
+	apt-get remove mysql-server-core-5.5 mysql-server-5.5 mysql-client-5.5
     apt-get install percona-server-server-5.5
 }
 
