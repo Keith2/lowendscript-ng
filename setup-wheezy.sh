@@ -474,7 +474,7 @@ function install_lighttpd {
 }
 
 function install_php {
-    check_install php5-fpm "php5-fpm php5-cli php5-mysqlnd php5-cgi php5-gd php5-curl php-apc"
+    check_install php5-fpm "php5-fpm php5-cli php5-mysqlnd php5-cgi php5-gd php5-curl php5-xcache"
     if [ "$SERVER" = "nginx" ]; then
 	cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
@@ -511,11 +511,6 @@ fi
     sed -i "/listen.owner =/clisten.owner = www-data" /etc/php5/fpm/pool.d/www.conf
     sed -i "/listen.group =/clisten.group = www-data" /etc/php5/fpm/pool.d/www.conf
     sed -i "/listen.mode =/clisten.mode = 0666" /etc/php5/fpm/pool.d/www.conf
-	cat > /etc/php5/conf.d/lowendscript.ini <<END
-apc.enable_cli = 1
-apc.mmap_file_mask=/tmp/apc.XXXXXX
-date.timezone = `cat /etc/timezone`
-END
 if [ "$SERVER" = "lighttpd" ]; then
     cat > /etc/lighttpd/conf-available/90-fastcgi-fpm.conf << END
 server.modules += ( "mod_fastcgi" )
@@ -1491,6 +1486,12 @@ upgrade)
     if [ -e /etc/postfix/main.cf ]; then
 		postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
 		service postfix restart
+	fi
+    if [ -e /etc/postfix/main.cf ]; then
+		rm -f /etc/php5/conf.d/lowendscript.ini
+    fi
+	if [ -e /etc/php5/mods-available/apc.ini ]; then
+		apt-get install php5-xcache
 	fi
     ;;
 *)    echo 'Usage:' `basename $0` '[option]'
