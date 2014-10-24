@@ -291,6 +291,7 @@ http {
 	types_hash_max_size 2048;
 	server_names_hash_bucket_size 64;
 	ignore_invalid_headers on;
+    server_tokens off;
 	log_format  main  '\$remote_addr \$host \$server_port \$remote_user [\$time_local] "\$request" '
                '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for"';
 	upstream php {
@@ -1045,7 +1046,8 @@ END
 	location ~ \.php$ {
 		fastcgi_split_path_info ^(.+\.php)(/.+)$;
 		include fastcgi_params;
-#		fastcgi_param HTTPS on;
+		fastcgi_param SCRIPT_FILENAME $request_filename;
+		fastcgi_param HTTPS on;
 		fastcgi_index index.php;
 		fastcgi_pass php;
 		try_files \$uri \$uri/ =404;
