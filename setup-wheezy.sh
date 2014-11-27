@@ -191,10 +191,16 @@ END
     service postfix reload
 }
 
-function install_mysql {
-    # Install the MySQL packages
-    check_install mysqld "mysql-server"
-    check_install mysql "mysql-client"
+function install_percona {
+    apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
+    cat > /etc/apt/sources.list.d/percona.list <<END
+deb http://repo.percona.com/apt wheezy main
+#deb-src http://repo.percona.com/apt wheezy main
+END
+    apt-get update
+    # Install the Percona packages
+    check_install mysqld "percona-server-server-5.5"
+    check_install mysql "percona-server-client-5.5"
 
     # Install a low-end copy of the my.cnf to disable InnoDB, and then delete
     # all the related files.
@@ -220,17 +226,6 @@ password = $passwd
 END
 	fi
     chmod 600 ~/.my.cnf
-}
-
-function install_percona {
-    apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
-    cat > /etc/apt/sources.list.d/percona.list <<END
-deb http://repo.percona.com/apt wheezy main
-#deb-src http://repo.percona.com/apt wheezy main
-END
-    apt-get update
-	apt-get remove mysql-server-core-5.5 mysql-server-5.5 mysql-client-5.5
-    apt-get install percona-server-server-5.5
 }
 
 function install_nginx {
@@ -1340,17 +1335,9 @@ postfix)
 iptables)
     install_iptables $SSH_PORT
     ;;
-mysql)
-    install_mysql
-    ;;
 percona)
-    if [ -z "`which "mysql" 2>/dev/null`" ]; then
-        print_warn "MySQL has to be installed as this is an upgrade only."
-    else
-        install_percona
-    fi
+    install_percona
     ;;
-
 nginx)
     install_nginx
     ;;
