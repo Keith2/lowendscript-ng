@@ -449,32 +449,6 @@ END
     sed -i "s/rotate 52/rotate 1/" /etc/logrotate.d/nginx
 }
 
-function install_apache {
-    check_install apache "apache"
-}
-
-function install_lighttpd {
-    check_install lighttpd "lighttpd"
-    if [ ! -e /etc/lighttpd/conf-enabled/10-accesslog.conf ]; then
-	ln -s /etc/lighttpd/conf-available/10-accesslog.conf /etc/lighttpd/conf-enabled/10-accesslog.conf
-    fi
-    if [ ! -d /etc/lighttpd/sites-available ]; then
-        mkdir /etc/lighttpd/sites-available
-    fi
-    if [ ! -d /etc/lighttpd/sites-enabled ]; then
-        mkdir /etc/lighttpd/sites-enabled
-    fi
-    if [ ! -d /var/www/default ]; then
-        mkdir -p /var/www/default
-    fi
-    sed -i '/server.document-root/cserver.document-root        = "\/var\/www\/default"' /etc/lighttpd/lighttpd.conf
-    sed -i '/mod_rewrite/c\	"mod_rewrite",' /etc/lighttpd/lighttpd.conf
-    if [ -z "`grep 'sites-enabled' /etc/lighttpd/lighttpd.conf`" ];then
-	echo include_shell \"cat /etc/lighttpd/sites-enabled/*.conf\" >> /etc/lighttpd/lighttpd.conf
-    fi
-    service lighttpd restart
-}
-
 function install_php {
     check_install php5-fpm "php5-fpm php5-cli php5-mysqlnd php5-cgi php5-gd php5-curl php5-xcache"
     if [ "$SERVER" = "nginx" ]; then
@@ -513,23 +487,6 @@ fi
     sed -i "/listen.owner =/clisten.owner = www-data" /etc/php5/fpm/pool.d/www.conf
     sed -i "/listen.group =/clisten.group = www-data" /etc/php5/fpm/pool.d/www.conf
     sed -i "/listen.mode =/clisten.mode = 0666" /etc/php5/fpm/pool.d/www.conf
-if [ "$SERVER" = "lighttpd" ]; then
-    cat > /etc/lighttpd/conf-available/90-fastcgi-fpm.conf << END
-server.modules += ( "mod_fastcgi" )
-fastcgi.server = ( ".php" =>
-                    ( "localhost" =>
-                        (
-			     "socket" => "/var/run/php5-fpm.sock"
-#                            "host" => "127.0.0.1",
-#                            "port" => "9000"
-                        )
-                    )
-                 )
-END
-    if [ ! -e /etc/lighttpd/conf-enabled/90-fastcgi-fpm.conf ]; then
-	ln -s /etc/lighttpd/conf-available/90-fastcgi-fpm.conf /etc/lighttpd/conf-enabled/90-fastcgi-fpm.conf
-    fi
-fi
     service php5-fpm restart
     if [ "$SERVER" = "nginx" ]; then
 	if [ -f /etc/init.d/php-cgi ];then
@@ -539,9 +496,6 @@ fi
             service nginx restart
             print_info "/etc/init.d/php-cgi removed"
 	fi
-    fi
-    if [ "$SERVER" = "lighttpd" ]; then
-	service lighttpd restart
     fi
 }
 
@@ -650,19 +604,6 @@ END
 
     ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
     invoke-rc.d nginx reload
-fi
-if [ "$SERVER" = "lighttpd" ]; then
-    host=${2//./\\.}
-    cat > "/etc/lighttpd/sites-available/$2.conf" << END
-\$HTTP["host"] =~ "$host" {
-            server.document-root = "/var/www/$2"
-            accesslog.filename   = "/var/log/lighttpd/$2.log"
-}
-END
-    if [ ! -e /etc/lighttpd/sites-enabled/$2.conf ]; then
-	ln -s /etc/lighttpd/sites-available/$2.conf /etc/lighttpd/sites-enabled/$2.conf
-    fi
-    service lighttpd restart
 fi
 }
 function install_iptables {
@@ -957,17 +898,6 @@ END
     ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
     service nginx force-reload
 fi
-if [ "$SERVER" = "lighttpd" ]; then
-    host=${1//./\\.}
-    cat > "/etc/lighttpd/sites-available/$1.conf" <<END
-\$HTTP["host"] =~ "^(www\.)?$host\$" {
-	server.document-root = "/var/www/$1"
-        accesslog.filename   = "/var/log/lighttpd/$1.log"
-}
-END
-    ln -s /etc/lighttpd/sites-available/$1.conf /etc/lighttpd/sites-enabled/$1.conf
-    service lighttpd force-reload
-fi
 }
 
 function install_friendica {
@@ -1062,31 +992,6 @@ END
 	}
 }
 END
-    if [ "$SERVER" = "lighttpd" ]; then
-        host=${2//./\\.}
-	cat > "/etc/lighttpd/sites-available/$2.conf" <<END
-\$HTTP["host"] =~ "^(www\.)?$host\$" {
-server.document-root = "/var/www/$2"
-mimetype.assign += ( ".jar" => "x-java-archive",
-                     ".oga" => "audio/ogg" )
-
-# uncomment for 1.4, which lacks $PHYSICAL
-\$HTTP["url"] =~ "\.(out|log)$"  {
-        url.access-deny = ( "" )
-}
-# for 1.5 and above
-#PHYSICAL["path"] =~ "\.(out|log)$"  {
-#       url.access-deny = ( "" )
-#}
-else \$HTTP["url"] =~ "(^|/)\."    {
-        url.access-deny = ( "" )
-}
-url.rewrite-if-not-file = ( "^/([^?]*)(?:\?(.*))?" => "/index.php?q=\$1&\$2" )
-accesslog.filename         = "/var/log/lighttpd/$2.log"
-}
-END
-
-    fi
 	cat > "/var/www/$2/robots.txt" <<END
 User-agent: *
 Disallow: /
@@ -1101,10 +1006,6 @@ END
 		ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
 		service nginx force-reload
 	fi
-        if [ "$SERVER" = "lighttpd" ]; then
-                ln -s /etc/lighttpd/sites-available/$2.conf /etc/lighttpd/sites-enabled/$2.conf
-                service lighttpd force-reload
-        fi
 	cd /var/www/$2
 	cp htconfig.php .htconfig.php
 	echo -n "Enter admin email: "
@@ -1357,7 +1258,7 @@ if [ "$1" = "system" -o "$1" = "postfix" -o "$1" = "iptables" -o "$1" = "mysql" 
 else
     echo 'Usage:' `basename $0` '[option]'
     echo 'Available options:'
-    for option in system postfix iptables mysql 'percona - install mysql first' lighttpd nginx nginx-upstream php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
+    for option in system postfix iptables mysql 'percona - install mysql first' nginx nginx-upstream php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
     do
         echo '  -' $option
     done
@@ -1377,7 +1278,7 @@ USER=changeme
 EMAIL=\$USER@[127.0.0.1] # mail user or an external email address
 OPENVZ=yes # Values are yes, no or gnome
 DISTRIBUTION=wheezy # Does not do anything yet, left in for jessie
-SERVER=nginx # Values are nginx or lighttpd
+SERVER=nginx # Deprcated, now unused
 CPUCORES=detect # Options are detect or n where n = number of cpu cores to be used
 MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available
 END
@@ -1393,10 +1294,10 @@ if [ -z "`grep 'MEMORY=' ./setup-debian.conf`" ]; then
 	echo MEMORY=128 \# values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available >> ./setup-debian.conf
 fi
 if [ -z "`grep 'DISTRIBUTION=' ./setup-debian.conf`" ]; then
-    echo DISTRIBUTION=wheezy \# Values are nginx or lighttpd >> ./setup-debian.conf
+    echo DISTRIBUTION=wheezy \# Value is wheezy >> ./setup-debian.conf
 fi
 if [ -z "`grep 'SERVER=' ./setup-debian.conf`" ]; then
-    echo SERVER=nginx \# Values are nginx or lighttpd >> ./setup-debian.conf
+    echo SERVER=nginx \# Values is nginx >> ./setup-debian.conf
 fi
 if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
     apt-get -q -y update
@@ -1426,17 +1327,9 @@ all)
     update_upgrade
     install_postfix
     install_mysql
-    if [ "$SERVER" = "apache" ]; then
-	install_apache
-    elif [ "$SERVER" = "lighttpd" ]; then
-	install_lighttpd
-    else
-        install_nginx
-    fi
+    install_nginx
     install_php
-    if [ "$SERVER" = "nginx" ]; then
-	install_cgi
-    fi
+    install_cgi
 #    install_iptables $SSH_PORT
     ;;
 postfix)
@@ -1466,12 +1359,6 @@ nginx-upstream)
     else
         install_nginx-upstream
     fi
-    ;;
-#apache)
-#    install_apache
-#    ;;
-lighttpd)
-    install_lighttpd
     ;;
 php)
     install_php
