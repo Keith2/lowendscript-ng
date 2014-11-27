@@ -1352,6 +1352,17 @@ END
 ########################################################################
 # START OF PROGRAM
 ########################################################################
+if [ "$1" = "system" -o "$1" = "postfix" -o "$1" = "iptables" -o "$1" = "mysql" -o "$1" = "percona" -o "$1" = "nginx" -o "$1" = "nginx-upstream" -o "$1" = "php" -o "$1" = "cgi" -o "$1" = "domain" -o "$1" = "wordpress" -o "$1" = "friendica" -o "$1" = "custom" -o "$1" = "upgrade" ]; then
+	echo option found
+else
+    echo 'Usage:' `basename $0` '[option]'
+    echo 'Available options:'
+    for option in system postfix iptables mysql 'percona - install mysql first' lighttpd nginx nginx-upstream php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
+    do
+        echo '  -' $option
+    done
+    exit 1
+fi
 export PATH=/bin:/usr/bin:/sbin:/usr/sbin
 
 check_sanity
@@ -1497,11 +1508,7 @@ upgrade)
 		apt-get install php5-xcache
 	fi
     ;;
-*)    echo 'Usage:' `basename $0` '[option]'
-    echo 'Available option:'
-    for option in system postfix iptables mysql percona lighttpd nginx nginx-upstream php cgi domain wordpress friendica custom upgrade
-    do
-        echo '  -' $option
-    done
+*)
+    echo 'Option not found'
     ;;
 esac
