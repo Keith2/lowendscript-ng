@@ -234,13 +234,20 @@ END
 }
 
 function install_nginx {
+    wget -O - http://nginx.org/keys/nginx_signing.key | apt-key add -
+    cat > /etc/apt/sources.list.d/nginx.list <<END
+deb http://nginx.org/packages/debian/ wheezy nginx
+#deb-src http://nginx.org/packages/debian/ wheezy nginx
+END
+    apt-get update
+
     check_install nginx "nginx"
 
     if [ ! -d /etc/nginx/ssl_keys ]; then
         mkdir /etc/nginx/ssl_keys
     fi
-    if [ ! -e /etc/nginx/ssl_keys/dhparam-1024.pem ]; then
-        openssl dhparam -out /etc/nginx/ssl_keys/dhparam-1024.pem 1024
+    if [ ! -e /etc/nginx/ssl_keys/dhparam-2048.pem ]; then
+        openssl dhparam -out /etc/nginx/ssl_keys/dhparam-2048.pem 2048
     fi
 
 # Create a ssl default ssl certificate.
@@ -291,7 +298,7 @@ http {
 	types_hash_max_size 2048;
 	server_names_hash_bucket_size 64;
 	ignore_invalid_headers on;
-    server_tokens off;
+	server_tokens off;
 	log_format  main  '\$remote_addr \$host \$server_port \$remote_user [\$time_local] "\$request" '
                '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for"';
 	upstream php {
@@ -326,12 +333,18 @@ http {
 
 	ssl_certificate ssl_keys/default.pem;
 	ssl_certificate_key ssl_keys/default.key;
-	ssl_dhparam ssl_keys/dhparam-1024.pem;
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+	ssl_dhparam ssl_keys/dhparam-2048.pem;
 	ssl_session_timeout 5m;
-	ssl_session_cache shared:SSL:10m;
-	ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+	ssl_session_cache shared:SSL:50m;
+	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
 	ssl_ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:ECDHE-RSA-AES256-SHA:DHE-RSA-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:DHE-RSA-CAMELLIA128-SHA:HIGH:!aNULL;
 	ssl_prefer_server_ciphers on;
+
+        #fastcgi_cache_path /home/nginx-cache levels=1:2 keys_zone=CACHE:100m inactive=60m;
+        #fastcgi_cache_key "$scheme$request_method$host$request_uri";
+
+        client_max_body_size 8m;
 
 	include /etc/nginx/conf.d/*.conf;
 	include /etc/nginx/sites-enabled/*;
@@ -451,8 +464,7 @@ END
 
 function install_php {
     check_install php5-fpm "php5-fpm php5-cli php5-mysqlnd php5-cgi php5-gd php5-curl php5-xcache"
-    if [ "$SERVER" = "nginx" ]; then
-	cat > /etc/nginx/fastcgi_php <<END
+    cat > /etc/nginx/fastcgi_php <<END
 location ~ \.php$ {
 	include /etc/nginx/fastcgi_params;
 	fastcgi_index index.php;
@@ -462,7 +474,6 @@ location ~ \.php$ {
 	}
 }
 END
-fi
     sed -i "/pm =/cpm = ondemand" /etc/php5/fpm/pool.d/www.conf
     if [ "$MEMORY" = "low" ]; then
         sed -i "/pm.max_children =/cpm.max_children = 1" /etc/php5/fpm/pool.d/www.conf
@@ -488,14 +499,12 @@ fi
     sed -i "/listen.group =/clisten.group = www-data" /etc/php5/fpm/pool.d/www.conf
     sed -i "/listen.mode =/clisten.mode = 0666" /etc/php5/fpm/pool.d/www.conf
     service php5-fpm restart
-    if [ "$SERVER" = "nginx" ]; then
-	if [ -f /etc/init.d/php-cgi ];then
-            service php-cgi stop
-            update-rc.d php-cgi remove
-            rm /etc/init.d/php-cgi
-            service nginx restart
-            print_info "/etc/init.d/php-cgi removed"
-	fi
+    if [ -f /etc/init.d/php-cgi ];then
+        service php-cgi stop
+        update-rc.d php-cgi remove
+        rm /etc/init.d/php-cgi
+        service nginx restart
+        print_info "/etc/init.d/php-cgi removed"
     fi
 }
 
@@ -519,7 +528,7 @@ function install_domain {
     then
         die "Usage: `basename $0` domain <hostname>"
     fi
-	if [ "$3" = "redo" -a "SERVER" = "nginx" ]; then
+	if [ "$3" = "redo" ]; then
 		rm /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf /var/www/$2/index.html
 		if [ -e /var/www/$2/index.sh ]; then
 			rm /var/www/$2/index.sh
@@ -551,9 +560,8 @@ END
 User-agent: *
 Disallow: /
 END
-if [ "$SERVER" = "nginx" ];then
-   # Setting up Nginx mapping
-    cat > "/etc/nginx/sites-available/$2.conf" <<END
+# Setting up Nginx mapping
+cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
 	listen 80;
 END
@@ -579,7 +587,6 @@ END
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name $2;
 END
-    fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	access_log /var/log/nginx/$2.log main;
 	include standard.conf;
@@ -854,9 +861,8 @@ function install_wordpress {
     mysqladmin create "$dbname"
     echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | \
         mysql
-if [ "$SERVER" = "nginx" ]; then
-	# Setting up Nginx mapping
-	cat > "/etc/nginx/sites-available/$1.conf" <<END
+    # Setting up Nginx mapping
+    cat > "/etc/nginx/sites-available/$1.conf" <<END
 server {
 	listen 80;
 	listen [::]:80;
@@ -897,7 +903,6 @@ END
 END
     ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
     service nginx force-reload
-fi
 }
 
 function install_friendica {
@@ -926,13 +931,11 @@ function install_friendica {
 		chown www-data:www-data addon view/smarty3
 	fi
 	cd /var/www/$2
-    if [ "$SERVER" = "nginx" ]; then
-		cat > "/etc/nginx/sites-available/$2.conf" <<END
+    cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
 	listen 80;
 	listen 443 ssl spdy;
 END
-    fi
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	listen [::]:80;
@@ -1002,10 +1005,8 @@ END
 */10 * * * *   www-data  cd /var/www/$2; nice -n 15 /usr/bin/php include/poller.php > /dev/null
 END
         fi
-	if [ "$SERVER" = "nginx" ]; then
-		ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
-		service nginx force-reload
-	fi
+	ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
+	service nginx force-reload
 	cd /var/www/$2
 	cp htconfig.php .htconfig.php
 	echo -n "Enter admin email: "
@@ -1258,7 +1259,7 @@ if [ "$1" = "system" -o "$1" = "postfix" -o "$1" = "iptables" -o "$1" = "mysql" 
 else
     echo 'Usage:' `basename $0` '[option]'
     echo 'Available options:'
-    for option in system postfix iptables mysql 'percona - install mysql first' nginx nginx-upstream php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
+    for option in system postfix iptables mysql 'percona - install mysql first' nginx 'nginx-upstream - not required unless upgrading nginx installed with an older version of this script' php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
     do
         echo '  -' $option
     done
@@ -1299,7 +1300,7 @@ fi
 if [ -z "`grep 'SERVER=' ./setup-debian.conf`" ]; then
     echo SERVER=nginx \# Values is nginx >> ./setup-debian.conf
 fi
-if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
+if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
     apt-get -q -y update
     check_install nano "nano"
 fi
