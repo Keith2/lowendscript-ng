@@ -974,7 +974,7 @@ END
 	location ~ \.php$ {
 		fastcgi_split_path_info ^(.+\.php)(/.+)$;
 		include fastcgi_params;
-		fastcgi_param SCRIPT_FILENAME $request_filename;
+		fastcgi_param SCRIPT_FILENAME \$request_filename;
 		fastcgi_param HTTPS on;
 		fastcgi_index index.php;
 		fastcgi_pass php;
@@ -997,7 +997,7 @@ END
         if [ !  "$3" = "redo" ]; then
                 cat >> "/etc/crontab" <<END
 50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
-*/10 * * * *   www-data  cd /var/www/$2; nice -n 15 /usr/bin/php include/poller.php > /dev/null
+*/10 * * * *   www-data  cd /var/www/$2; /usr/bin/php include/poller.php
 END
         fi
 	ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
@@ -1022,6 +1022,180 @@ END
 	sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
 	sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
 	mysql $dbname < ./database.sql
+}
+
+function install_red {
+	if [ ! -f /etc/nginx/ssl_keys/$2.crt -o ! -f /etc/nginx/ssl_keys/$2.key ]; then
+		die "No signed ssl cert for $2"
+	fi
+        if [ -z "$2" ];         then
+                die "Usage: `basename $0` red <hostname>"
+        fi
+        if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
+                die "$2 already exists"
+        fi
+        check_install "friendica dependencies" "git php5-mcrypt"
+        if [ ! -d /var/www ]; then
+                mkdir /var/www
+                chown www-data:www-data /var/www
+        fi
+        cd /var/www
+        if [ -d red ]; then
+                rm -r red #Delete previous clone, which may have errors
+        fi
+        if [ ! "$3" = "redo" ]; then
+                git clone https://github.com/friendica/red.git
+                mv red $2
+                chown -R www-data:www-data $2
+                cd $2
+                git clone https://github.com/friendica/red-addons.git
+                mv red-addons addon
+	        mkdir -p "store/[data]/smarty3"
+	        chmod -R 777 store
+        fi
+        cd /var/www/$2
+    cat > "/etc/nginx/sites-available/$2.conf" <<END
+server {
+        listen 80;
+END
+	if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:80;
+END
+        fi
+    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        server_name $2;
+        access_log off;
+	return 301 https://$2/$request_uri;
+}
+
+server {
+        listen 443 ssl spdy;
+END
+	if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:443 ssl spdy;
+END
+	fi
+	cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        server_name $2;
+        access_log /var/log/nginx/$2.log main;
+        charset utf-8;
+        root /var/www/$2;
+
+        ssl_certificate ssl_keys/$2.crt;
+        ssl_certificate_key ssl_keys/$2.key;
+
+        client_max_body_size 20m;
+        client_body_buffer_size 128k;
+
+        location = /favicon.ico {
+                expires max;
+                log_not_found off;
+                access_log off;
+                return 204;
+        }
+
+        location = /robots.txt {
+                log_not_found off;
+                access_log off;
+        }
+
+        # rewrite to front controller as default rule
+        location / {
+                rewrite ^/(.*) /index.php?q=\$uri&\$args last;
+        }
+
+        # make sure webfinger and other well known services aren't blocked
+        # by denying dot files and rewrite request to the front controller
+        location ^~ /.well-known/ {
+                allow all;
+                rewrite ^/(.*) /index.php?q=\$uri&\$args last;
+        }
+
+        # statically serve these file types when possible
+        # otherwise fall back to front controller
+        # allow browser to cache them
+        # added .htm for advanced source code editor library
+        location ~* \.(jpg|jpeg|gif|png|ico|css|js|htm|html|ttf|woff|svg)$ {
+                expires 30d;
+                try_files \$uri /index.php?q=\$uri&\$args;
+        }
+
+        # block these file types
+        location ~* \.(tpl|md|tgz|log|out)$ {
+                deny all;
+        }
+
+        location ~* \.php$ {
+                # Zero-day exploit defense.
+                # http://forum.nginx.org/read.php?2,88845,page=3
+                # Won't work properly (404 error) if the file is not stored on this
+                # server, which is entirely possible with php-fpm/php-fcgi.
+                # Comment the 'try_files' line out if you set up php-fpm/php-fcgi on
+                # another machine. And then cross your fingers that you won't get hacked.
+                try_files \$uri =404;
+
+                # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+                fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                include fastcgi_params;
+                fastcgi_index index.php;
+                fastcgi_param SCRIPT_FILENAME \$request_filename;
+                fastcgi_pass php;
+                fastcgi_read_timeout 300;
+#                fastcgi_cache CACHE;
+#                fastcgi_cache_valid 200 302 10m;
+#                fastcgi_cache_valid 301 1h;
+        }
+
+        # deny access to all dot files
+        location ~ /\. {
+                deny all;
+        }
+
+        #deny access to store
+        location ~ /store {
+                deny all;
+        }
+}
+END
+        cat > "/var/www/$2/robots.txt" <<END
+User-agent: *
+Disallow: /
+END
+        if [ !  "$3" = "redo" ]; then
+                cat >> "/etc/crontab" <<END
+50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
+*/10 * * * *   www-data  cd /var/www/$2; /usr/bin/php include/poller.php
+END
+        fi
+        ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
+        service nginx force-reload
+        cd /var/www/$2
+        cp view/en/htconfig.tpl .htconfig.php
+        echo -n "Enter admin email: "
+        read -e EMAIL
+        sed -i "/\['admin_email'\]/c\$a->config['system']['admin_email'] = '$EMAIL';" .htconfig.php
+        sed -i "/\['baseurl'\]/c\$a->config['system']['baseurl'] = 'https://$2';" .htconfig.php
+        sed -i "/\['location_hash'\]/c\$a->config['system']['location_hash'] = '`cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 64 | head -n 1`';" .htconfig.php
+        sed -i "/\['php_path'\]/c\$a->config['system']['php_path'] = '/usr/bin/php';" .htconfig.php
+        dbname=`echo $2 | tr . _`
+        echo database is $dbname
+        echo $userid;
+        # MySQL userid cannot be more than 15 characters long
+        userid="${dbname:0:15}"
+        echo $userid;
+        passwd=`get_password "$userid@mysql"`
+        mysqladmin create "$dbname"
+        echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | mysql
+        sed -i "/\$db_host =/c\$db_host = 'localhost';" .htconfig.php
+        sed -i "/\$db_user =/c\$db_user = '$userid';" .htconfig.php
+        sed -i "/\$db_port =/c\$db_port = '0';" .htconfig.php
+        sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
+        sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
+        sed -i "/\$db_type =/c\$db_type = '0'; // an integer. 0 or unset for mysql, 1 for postgres" .htconfig.php
+        sed -i "/\$default_timezone =/c\$default_timezone = 'America/Los_Angeles';" .htconfig.php
+        mysql $dbname < install/schema_mysql.sql
 }
 
 function install_yourls {
@@ -1249,12 +1423,12 @@ END
 ########################################################################
 # START OF PROGRAM
 ########################################################################
-if [ "$1" = "system" -o "$1" = "postfix" -o "$1" = "iptables" -o "$1" = "mysql" -o "$1" = "percona" -o "$1" = "nginx" -o "$1" = "nginx-upstream" -o "$1" = "php" -o "$1" = "cgi" -o "$1" = "domain" -o "$1" = "wordpress" -o "$1" = "friendica" -o "$1" = "custom" -o "$1" = "upgrade" ]; then
+if [ "$1" = "system" -o "$1" = "all" -o "$1" = "postfix" -o "$1" = "iptables" -o "$1" = "mysql" -o "$1" = "percona" -o "$1" = "nginx" -o "$1" = "nginx-upstream" -o "$1" = "php" -o "$1" = "cgi" -o "$1" = "domain" -o "$1" = "wordpress" -o "$1" = "friendica" -o "$1" = "red" -o "$1" = "custom" -o "$1" = "upgrade" ]; then
 	echo option found
 else
     echo 'Usage:' `basename $0` '[option]'
     echo 'Available options:'
-    for option in system postfix iptables mysql 'percona - install mysql first' nginx 'nginx-upstream - not required unless upgrading nginx installed with an older version of this script' php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'custom - my personal preferences' upgrade
+    for option in system 'all' postfix iptables mysql 'percona - install mysql first' nginx 'nginx-upstream - not required unless upgrading nginx installed with an older version of this script' php cgi 'domain example.com' 'wordpress example.com' 'friendica example.com' 'red example.com' 'custom - my personal preferences' upgrade
     do
         echo '  -' $option
     done
@@ -1322,10 +1496,10 @@ all)
     remove_unneeded
     update_upgrade
     install_postfix
-    install_mysql
+    install_percona
     install_nginx
     install_php
-    install_cgi
+#    install_cgi
 #    install_iptables $SSH_PORT
     ;;
 postfix)
@@ -1369,6 +1543,9 @@ wordpress)
     ;;
 friendica)
     install_friendica $1 $2 $3
+    ;;
+red)
+    install_red $1 $2 $3
     ;;
 upgrade)
     check_upgrade php5-fpm "php5-mysqlnd"
