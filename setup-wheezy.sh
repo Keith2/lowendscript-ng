@@ -1022,6 +1022,7 @@ END
 	sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
 	sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
 	mysql $dbname < ./database.sql
+	php util/config system ssl_policy 2
 }
 
 function install_red {
