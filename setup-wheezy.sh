@@ -1027,7 +1027,7 @@ END
 
 function install_red {
 	if [ ! -f /etc/nginx/ssl_keys/$2.crt -o ! -f /etc/nginx/ssl_keys/$2.key ]; then
-		die "No signed ssl cert for $2"
+		die "No signed ssl cert at /etc/nginx/ssl_keys/$2.crt or /etc/nginx/ssl_keys/$2.key for $2"
 	fi
         if [ -z "$2" ];         then
                 die "Usage: `basename $0` red <hostname>"
