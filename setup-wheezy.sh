@@ -863,7 +863,7 @@ server {
 	listen [::]:80;
 	server_name $1;
 	root /var/www/$1;
-	access_log /var/log/nginx/$1.log main;
+	access_log /var/log/nginx/$1.log main buffer=16k;
 	index index.php;
 	include standard.conf;
 	include fastcgi_php;
@@ -928,18 +928,31 @@ function install_friendica {
 	cd /var/www/$2
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
-	listen 80;
+        listen 80;
+END
+    if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:80;
+END
+    fi
+    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        server_name $2;
+        access_log off;
+        return 301 https://$2/$request_uri;
+}
+END
+    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+server {
 	listen 443 ssl spdy;
 END
     if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
-	listen [::]:80;
 	listen [::]:443 ssl spdy;
 END
-	fi
+    fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name $2;
-	access_log /var/log/nginx/$2.log main;
+	access_log /var/log/nginx/$2.log main buffer=16k;
 	root /var/www/$2;
 
     ssl_certificate ssl_keys/default.pem;
@@ -1022,7 +1035,6 @@ END
 	sed -i "/\$db_pass =/c\$db_pass = '$passwd';" .htconfig.php
 	sed -i "/\$db_data =/c\$db_data = '$dbname';" .htconfig.php
 	mysql $dbname < ./database.sql
-	php util/config system ssl_policy 2
 }
 
 function install_red {
@@ -1080,7 +1092,7 @@ END
 	fi
 	cat >> "/etc/nginx/sites-available/$2.conf" <<END
         server_name $2;
-        access_log /var/log/nginx/$2.log main;
+        access_log /var/log/nginx/$2.log main buffer=16k;
         charset utf-8;
         root /var/www/$2;
 
