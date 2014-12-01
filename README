@@ -13,10 +13,15 @@ To install wget - apt-get install wget
 For intitial server setup run
 bash setup-wheezy.sh all
 
+# friendica.com
 To install Friendica for domain example.com, after the initial server setup run
 bash setup-wheezy.sh friendica example.com
 
+# redmatrix.me
+To install Red for domain example.com, after the initial server setup run
+bash setup-wheezy.sh red example.com
 
-
-
+# wordpress.org
+To install WordPress for domain example.com, after the initial server setup run
+bash setup-wheezy.sh wordpress example.com
 
