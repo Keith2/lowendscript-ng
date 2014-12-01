@@ -1047,7 +1047,7 @@ function install_red {
         if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
                 die "$2 already exists"
         fi
-        check_install "friendica dependencies" "git php5-mcrypt"
+        check_install "red dependencies" "git php5-mcrypt"
         if [ ! -d /var/www ]; then
                 mkdir /var/www
                 chown www-data:www-data /var/www
