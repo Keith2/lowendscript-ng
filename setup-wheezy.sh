@@ -172,7 +172,7 @@ nobody:        /dev/null
 mail:          $EMAIL
 END
     newaliases
-	postconf -e "mailbox_command = /usr/bin/procmail -a "$EXTENSION" DEFAULT=$HOME/Maildir/"
+	postconf -e "mailbox_command = /usr/bin/procmail -a "$EXTENSION" DEFAULT=/home/$USER/Maildir/"
     openssl gendh -out /etc/postfix/dh_512.pem -2 512
     openssl gendh -out /etc/postfix/dh_1024.pem -2 1024
     postconf -e "smtpd_tls_dh1024_param_file = /etc/postfix/dh_1024.pem"
