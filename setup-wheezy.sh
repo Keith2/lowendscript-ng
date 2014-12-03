@@ -1374,7 +1374,7 @@ END
 
 #Custom commands go here, mine are included as examples delete as required
 function custom {
-    check_install keith "rsync autossh apticron dnsutils mc python logrotate apt-utils"
+    check_install keith "rsync autossh apticron dnsutils mc python logrotate apt-utils ioping"
     if [ "$OPENVZ" != 'gnome' ]; then
         check_remove fancontrol fancontrol
         check_remove dbus-daemon dbus
@@ -1399,9 +1399,6 @@ function custom {
     if [ -z "`grep 'MAILTO=' /etc/crontab`" ];then
         sed -i "s/SHELL=\/bin\/sh/SHELL=\/bin\/sh\\nMAILTO=root/" /etc/crontab
         print_info "MAILTO=root now in /etc/crontab"
-    fi
-    if [ -z "`grep 'dpkg --get-selections' /etc/crontab`" ];then
-	    echo "0 10 * * * root dpkg --get-selections >/root/dpkg-selections" >> /etc/crontab
     fi
     sed -i "s/weekly/daily/" /etc/logrotate.conf
     sed -i "s/rotate 4/rotate 1/" /etc/logrotate.conf
