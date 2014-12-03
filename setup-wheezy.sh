@@ -1367,6 +1367,9 @@ END
     install_dash
     install_syslogd
     install_dropbear
+    if [ -z "`grep '! -d /run/sshd' /etc/crontab`" ];then
+            echo "@reboot root if [ ! -d /run/sshd ]; then mkdir /run/sshd;fi" >> /etc/crontab
+    fi
     echo -n "To change root password press y then [ENTER]: "
     read -e reply
     if [ "$reply" = "y" ]; then
@@ -1566,13 +1569,16 @@ upgrade)
     if [ -e /etc/postfix/main.cf ]; then
 		postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
 		service postfix restart
-	fi
+    fi
     if [ -e /etc/php5/conf.d/lowendscript.ini ]; then
 		rm -f /etc/php5/conf.d/lowendscript.ini
     fi
-	if [ -e /etc/php5/mods-available/apc.ini ]; then
+    if [ -e /etc/php5/mods-available/apc.ini ]; then
 		apt-get install php5-xcache
-	fi
+    fi
+    if [ -z "`grep '! -d /run/sshd' /etc/crontab`" ];then
+            echo "@reboot root if [ ! -d /run/sshd ]; then mkdir /run/sshd;fi" >> /etc/crontab
+    fi
     ;;
 *)
     echo 'Option not found'
