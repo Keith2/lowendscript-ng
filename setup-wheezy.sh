@@ -1597,6 +1597,8 @@ upgrade)
     if [ -e /etc/php5/mods-available/apc.ini ]; then
 		apt-get install php5-xcache
     fi
+    sed -i "s/ssl_session_cache shared:SSL:10m/ssl_session_cache shared:SSL:50m/" /etc/nginx/nginx.conf
+    sed -i "s/ssl_protocols SSLv3 TLSv1 TLSv1.1 TLSv1.2/ssl_protocols TLSv1 TLSv1.1 TLSv1.2/" /etc/nginx/nginx.conf
     if [ -z "`grep '! -d /run/sshd' /etc/crontab`" ];then
             echo "@reboot root if [ ! -d /run/sshd ]; then mkdir /run/sshd;fi" >> /etc/crontab
     fi
