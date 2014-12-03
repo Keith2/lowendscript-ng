@@ -276,8 +276,8 @@ worker_processes $CPUCORES;
 pid /run/nginx.pid;
 
 events {
-	worker_connections 768;
-	# multi_accept on;
+	worker_connections 2048;
+	multi_accept on;
 }
 
 http {
@@ -318,10 +318,10 @@ http {
 
 	gzip on;
 	gzip_disable "msie6";
-	gzip_min_length 1400;
+	gzip_min_length 10240;
 	gzip_vary on;
 	gzip_proxied any;
-	gzip_comp_level 6;
+	gzip_comp_level 1;
 	gzip_buffers 16 8k;
 	gzip_http_version 1.1;
 	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
@@ -338,6 +338,11 @@ http {
 
         #fastcgi_cache_path /home/nginx-cache levels=1:2 keys_zone=CACHE:100m inactive=60m;
         #fastcgi_cache_key "$scheme$request_method$host$request_uri";
+
+        open_file_cache          max=10000 inactive=10m;
+        open_file_cache_valid    20m;
+        open_file_cache_min_uses 1;
+        open_file_cache_errors   off;
 
         client_max_body_size 8m;
 
@@ -990,11 +995,19 @@ END
 
 	location ~ \.php$ {
 		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                fastcgi_buffer_size 128k;
+                fastcgi_buffers 256 16k;
+                fastcgi_busy_buffers_size 256k;
+                fastcgi_temp_file_write_size 256k;
 		include fastcgi_params;
 		fastcgi_param SCRIPT_FILENAME \$request_filename;
 		fastcgi_param HTTPS on;
 		fastcgi_index index.php;
 		fastcgi_pass php;
+                fastcgi_read_timeout 150;
+#                fastcgi_cache CACHE;
+#                fastcgi_cache_valid 200 302 10m;
+#                fastcgi_cache_valid 301 1h;
 		try_files \$uri \$uri/ =404;
 	}
 
@@ -1003,7 +1016,9 @@ END
 		if (!-f \$request_filename) {
 			rewrite ^/(.+)\$ /index.php?q=\$1 last;
 		}
-		try_files \$uri \$uri/ =404;
+                expires 30d;
+                access_log off;
+                log_not_found off;
 	}
 }
 END
@@ -1136,6 +1151,8 @@ END
         # added .htm for advanced source code editor library
         location ~* \.(jpg|jpeg|gif|png|ico|css|js|htm|html|ttf|woff|svg)$ {
                 expires 30d;
+                access_log off;
+                log_not_found off;
                 try_files \$uri /index.php?q=\$uri&\$args;
         }
 
@@ -1156,10 +1173,14 @@ END
                 # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
                 fastcgi_split_path_info ^(.+\.php)(/.+)$;
                 include fastcgi_params;
+                fastcgi_buffer_size 128k;
+                fastcgi_buffers 256 16k;
+                fastcgi_busy_buffers_size 256k;
+                fastcgi_temp_file_write_size 256k;
                 fastcgi_index index.php;
                 fastcgi_param SCRIPT_FILENAME \$request_filename;
                 fastcgi_pass php;
-                fastcgi_read_timeout 300;
+                fastcgi_read_timeout 150;
 #                fastcgi_cache CACHE;
 #                fastcgi_cache_valid 200 302 10m;
 #                fastcgi_cache_valid 301 1h;
