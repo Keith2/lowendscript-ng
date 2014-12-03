@@ -486,6 +486,10 @@ END
         sed -i "/pm.max_children =/cpm.max_children = 12" /etc/php5/fpm/pool.d/www.conf
     elif [ "$MEMORY" = "512" ]; then
         sed -i "/pm.max_children =/cpm.max_children = 16" /etc/php5/fpm/pool.d/www.conf
+    elif [ "$MEMORY" = "1028" ]; then
+        sed -i "/pm.max_children =/cpm.max_children = 32" /etc/php5/fpm/pool.d/www.conf
+    elif [ "$MEMORY" = "2048" ]; then
+        sed -i "/pm.max_children =/cpm.max_children = 64" /etc/php5/fpm/pool.d/www.conf
     fi
     sed -i "/pm.max_requests =/cpm.max_requests = 500" /etc/php5/fpm/pool.d/www.conf
     sed -i "/pm.status_path =/cpm.status_path = \/status" /etc/php5/fpm/pool.d/www.conf
@@ -1460,7 +1464,7 @@ OPENVZ=yes # Values are yes, no or gnome
 DISTRIBUTION=wheezy # Does not do anything yet, left in for jessie
 SERVER=nginx # Deprcated, now unused
 CPUCORES=detect # Options are detect or n where n = number of cpu cores to be used
-MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available
+MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512, 1024, 2048 - use 2048 if more memory is available
 END
 fi
 
@@ -1471,7 +1475,7 @@ if [ -z "`grep 'CPUCORES=' ./setup-debian.conf`" ]; then
     echo CPUCORES=detect \# Options are detect or n where n = number of cpu cores to be used >> ./setup-debian.conf
 fi
 if [ -z "`grep 'MEMORY=' ./setup-debian.conf`" ]; then
-	echo MEMORY=128 \# values are low, 64, 96, 128, 192, 256, 384, 512 - use 512 if more memory is available >> ./setup-debian.conf
+	echo MEMORY=128 \# values are low, 64, 96, 128, 192, 256, 384, 512, 1024, 2048 - use 2048 if more memory is available >> ./setup-debian.conf
 fi
 if [ -z "`grep 'DISTRIBUTION=' ./setup-debian.conf`" ]; then
     echo DISTRIBUTION=wheezy \# Value is wheezy >> ./setup-debian.conf
