@@ -910,6 +910,11 @@ END
 }
 
 function install_friendica {
+        if [ "$FRIENDICASSL" = "sslonly" -o "$FRIENDICASSL" = "both" ]; then
+                if [ ! -f /etc/nginx/ssl_keys/$2.crt -o ! -f /etc/nginx/ssl_keys/$2.key ]; then
+                        die "No signed ssl cert at /etc/nginx/ssl_keys/$2.crt or /etc/nginx/ssl_keys/$2.key for $2"
+                fi
+        fi
 	if [ -z "$2" ]; 	then
 		die "Usage: `basename $0` friendica <hostname>"
 	fi
@@ -935,40 +940,57 @@ function install_friendica {
 		chown www-data:www-data addon view/smarty3
 	fi
 	cd /var/www/$2
+        if [ "$FRIENDICASSL" = "sslonly" ]; then
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
         listen 80;
 END
-    if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+                if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
         listen [::]:80;
 END
-    fi
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+                fi
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
         server_name $2;
         access_log off;
         return 301 https://$2/$request_uri;
 }
-END
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
 server {
-	listen 443 ssl spdy;
 END
-    if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
-        cat >> "/etc/nginx/sites-available/$2.conf" <<END
-	listen [::]:443 ssl spdy;
+        fi
+        if [ "$FRIENDICASSL" = "none" -o "$FRIENDICASSL" = "both" ]; then
+                cat > "/etc/nginx/sites-available/$2.conf" <<END
+server {
+        listen 80;
 END
-    fi
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+                if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+                        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:80;
+END
+                fi
+        fi
+        if [ "$FRIENDICASSL" = "sslonly" -o "$FRIENDICASSL" = "both" ]; then
+                cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen 443 ssl spdy;
+END
+                if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+                        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:443 ssl spdy;
+END
+                fi
+        fi
+	cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name $2;
 	access_log /var/log/nginx/$2.log main buffer=16k;
 	root /var/www/$2;
-
-    ssl_certificate ssl_keys/default.pem;
-    ssl_certificate_key ssl_keys/default.key;
-#	ssl_certificate ssl_keys/$2.pem;
-#	ssl_certificate_key ssl_keys/$2.key;
-
+END
+        if [ "$FRIENDICASSL" = "sslonly" -o "$FRIENDICASSL" = "both" ]; then
+                cat >> "/etc/nginx/sites-available/$2.conf" <<END
+	ssl_certificate ssl_keys/$2.crt;
+	ssl_certificate_key ssl_keys/$2.key;
+END
+	fi
+	cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	location = /favicon.ico {
 		expires max;
 		log_not_found off;
@@ -1001,7 +1023,6 @@ END
                 fastcgi_temp_file_write_size 256k;
 		include fastcgi_params;
 		fastcgi_param SCRIPT_FILENAME \$request_filename;
-		fastcgi_param HTTPS on;
 		fastcgi_index index.php;
 		fastcgi_pass php;
                 fastcgi_read_timeout 150;
@@ -1028,7 +1049,7 @@ Disallow: /
 END
         if [ !  "$3" = "redo" ]; then
                 cat >> "/etc/crontab" <<END
-50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
+50 7 * * 7 root cd /var/www/$2;git pull;cd addon;git pull
 */10 * * * *   www-data  cd /var/www/$2; /usr/bin/php include/poller.php
 END
         fi
@@ -1057,10 +1078,12 @@ END
 }
 
 function install_red {
-	if [ ! -f /etc/nginx/ssl_keys/$2.crt -o ! -f /etc/nginx/ssl_keys/$2.key ]; then
-		die "No signed ssl cert at /etc/nginx/ssl_keys/$2.crt or /etc/nginx/ssl_keys/$2.key for $2"
+	if [ "$REDSSL" = "sslonly" -o "$REDSSL" = "both" ]; then
+		if [ ! -f /etc/nginx/ssl_keys/$2.crt -o ! -f /etc/nginx/ssl_keys/$2.key ]; then
+			die "No signed ssl cert at /etc/nginx/ssl_keys/$2.crt or /etc/nginx/ssl_keys/$2.key for $2"
+		fi
 	fi
-        if [ -z "$2" ];         then
+        if [ -z "$2" ]; then
                 die "Usage: `basename $0` red <hostname>"
         fi
         if [ -d /var/www/$2 -a ! "$3" = "redo" ]; then
@@ -1086,38 +1109,58 @@ function install_red {
 	        chmod -R 777 store
         fi
         cd /var/www/$2
+	if [ "$REDSSL" = "sslonly" ]; then
     cat > "/etc/nginx/sites-available/$2.conf" <<END
 server {
         listen 80;
 END
-	if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+		if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
         listen [::]:80;
 END
-        fi
-    cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        	fi
+    	cat >> "/etc/nginx/sites-available/$2.conf" <<END
         server_name $2;
         access_log off;
 	return 301 https://$2/$request_uri;
 }
-
 server {
+END
+	fi
+        if [ "$REDSSL" = "none" -o "$REDSSL" = "both" ]; then
+		cat > "/etc/nginx/sites-available/$2.conf" <<END
+server {
+        listen 80;
+END
+                if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+                        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+        listen [::]:80;
+END
+                fi
+        fi
+        if [ "$REDSSL" = "sslonly" -o "$REDSSL" = "both" ]; then
+		cat >> "/etc/nginx/sites-available/$2.conf" <<END
         listen 443 ssl spdy;
 END
-	if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
-        cat >> "/etc/nginx/sites-available/$2.conf" <<END
+		if [ "$FLAGS" = "ipv6" -o "$FLAGS" = "all" ]; then
+        		cat >> "/etc/nginx/sites-available/$2.conf" <<END
         listen [::]:443 ssl spdy;
 END
+		fi
 	fi
 	cat >> "/etc/nginx/sites-available/$2.conf" <<END
         server_name $2;
         access_log /var/log/nginx/$2.log main buffer=16k;
         charset utf-8;
         root /var/www/$2;
-
+END
+        if [ "$REDSSL" = "sslonly" -o "$REDSSL" = "both" ]; then
+                cat >> "/etc/nginx/sites-available/$2.conf" <<END
         ssl_certificate ssl_keys/$2.crt;
         ssl_certificate_key ssl_keys/$2.key;
-
+END
+	fi
+        cat >> "/etc/nginx/sites-available/$2.conf" <<END
         client_max_body_size 20m;
         client_body_buffer_size 128k;
 
@@ -1203,7 +1246,7 @@ Disallow: /
 END
         if [ !  "$3" = "redo" ]; then
                 cat >> "/etc/crontab" <<END
-50 7 * * * root cd /var/www/$2;git pull;cd addon;git pull
+50 7 * * 7 root cd /var/www/$2;git pull;cd addon;git pull
 */10 * * * *   www-data  cd /var/www/$2; /usr/bin/php include/poller.php
 END
         fi
@@ -1486,9 +1529,12 @@ USER=changeme
 EMAIL=\$USER@[127.0.0.1] # mail user or an external email address
 OPENVZ=yes # Values are yes, no or gnome
 DISTRIBUTION=wheezy # Does not do anything yet, left in for jessie
-SERVER=nginx # Deprcated, now unused
+SERVER=nginx # Deprecated, now unused
 CPUCORES=detect # Options are detect or n where n = number of cpu cores to be used
 MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512, 1024, 2048 - use 2048 if more memory is available
+FRIENDICASSL=none # values are none, sslonly & both both is http & https. sslonly & both require a pre-installed signed ssl cert
+REDSSL=none # values are none, sslonly & both both is http & https. sslonly & both require a pre-installed signed ssl cert
+# SELF SIGNED SSL CERTS ARE NOT SUPPORTED
 END
 fi
 
@@ -1505,7 +1551,16 @@ if [ -z "`grep 'DISTRIBUTION=' ./setup-debian.conf`" ]; then
     echo DISTRIBUTION=wheezy \# Value is wheezy >> ./setup-debian.conf
 fi
 if [ -z "`grep 'SERVER=' ./setup-debian.conf`" ]; then
-    echo SERVER=nginx \# Values is nginx >> ./setup-debian.conf
+    echo SERVER=nginx \# Deprecated, now unused >> ./setup-debian.conf
+fi
+if [ -z "`grep 'FRIENDICASSL=' ./setup-debian.conf`" ]; then
+    echo FRIENDICASSL=none \# values are none, sslonly \& both both is http \& https. sslonly \& both require a pre-installed signed ssl cert >> ./setup-debian.conf
+fi
+if [ -z "`grep 'REDSSL=' ./setup-debian.conf`" ]; then
+    echo REDSSL=none \# values are none, sslonly \& both both is http \& https. sslonly \& both require a pre-installed signed ssl cert >> ./setup-debian.conf
+fi
+if [ -z "`grep 'SELF SIGNED' ./setup-debian.conf`" ]; then
+    echo \# SELF SIGNED SSL CERTS ARE NOT SUPPORTED >> ./setup-debian.conf
 fi
 if [ -z "`which "$1" 2>/dev/null`" -a ! "$1" = "domain" -a ! "$1" = "nginx" -a ! "$1" = "nginx-upstream" -a ! "$1" = "percona" ]; then
     apt-get -q -y update
