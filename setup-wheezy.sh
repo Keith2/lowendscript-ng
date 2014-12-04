@@ -1535,6 +1535,7 @@ MEMORY=128 # values are low, 64, 96, 128, 192, 256, 384, 512, 1024, 2048 - use 2
 FRIENDICASSL=none # values are none, sslonly & both both is http & https. sslonly & both require a pre-installed signed ssl cert
 REDSSL=none # values are none, sslonly & both both is http & https. sslonly & both require a pre-installed signed ssl cert
 # SELF SIGNED SSL CERTS ARE NOT SUPPORTED
+# to pre-install a signed ssl certificate, copy the crt & key files to /etc/nginx/ssl_keys/
 END
 fi
 
