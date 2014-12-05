@@ -591,6 +591,7 @@ END
         cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	server_name $2;
 END
+    fi
     cat >> "/etc/nginx/sites-available/$2.conf" <<END
 	access_log /var/log/nginx/$2.log main;
 	include standard.conf;
@@ -615,7 +616,6 @@ END
 
     ln -s /etc/nginx/sites-available/$2.conf /etc/nginx/sites-enabled/$2.conf
     invoke-rc.d nginx reload
-fi
 }
 function install_iptables {
 
