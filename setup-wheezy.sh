@@ -109,7 +109,11 @@ END
 }
 
 function install_dropbear {
-    check_upgrade ssh "ssh" "-t wheezy-backports"
+    if [ "DISTRIBUTION" = "wheezy" ]; then
+	    check_upgrade ssh "ssh" "-t wheezy-backports"
+    else
+        check_upgrade ssh "ssh"
+    fi
     check_remove dropbear "dropbear"
     check_install /usr/sbin/xinetd "xinetd"
 
@@ -160,7 +164,11 @@ END
 }
 
 function install_postfix {
-    check_install postfix "postfix procmail" "-t wheezy-backports"
+    if [ "DISTRIBUTION" = "wheezy" ]; then
+        check_install postfix "postfix procmail" "-t wheezy-backports"
+    else
+        check_install postfix "postfix procmail"
+    fi
     cat > /etc/aliases <<END
 postmaster:    $EMAIL
 MAILER-DAEMON: $EMAIL
@@ -1404,10 +1412,16 @@ function update_upgrade {
     # Run through the apt-get update/upgrade first. This should be done before
     # we try to install any package
 
-    cat > /etc/apt/sources.list.d/backports.list <<END
+    if [ "DISTRIBUTION" = "wheezy" ]; then
+        cat > /etc/apt/sources.list.d/backports.list <<END
 deb http://ftp.debian.org/debian/ wheezy-backports main
 #deb-src http://ftp.debian.org/debian/ wheezy-backports main
 END
+    else
+        if [ -f /etc/apt/sources.list.d/backports.list ]; then
+		    rm -rf /etc/apt/sources.list.d/backports.list
+        fi
+    fi
     apt-get -q -y update
     if [ "$OPENVZ" = 'yes' ]; then
         if [ -z "`grep 'ulimit -s 256' /etc/init.d/rc`" ];then
