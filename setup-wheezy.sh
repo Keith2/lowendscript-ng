@@ -196,6 +196,7 @@ END
     postconf -e "smtp_tls_security_level = may"
     postconf -e "smtpd_tls_auth_only = yes"
     postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
+    postconf -e "smtpd_tls_exclude_ciphers = aNULL, MD5 , DES, ADH, RC4, PSD, SRP, 3DES, eNULL"
     service postfix reload
 }
 
@@ -1659,6 +1660,7 @@ upgrade)
     check_upgrade php5-fpm "php5-mysqlnd"
     if [ -e /etc/postfix/main.cf ]; then
 		postconf -e "smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt"
+        postconf -e "smtpd_tls_exclude_ciphers = aNULL, MD5 , DES, ADH, RC4, PSD, SRP, 3DES, eNULL"
 		service postfix restart
     fi
     if [ -e /etc/php5/conf.d/lowendscript.ini ]; then
