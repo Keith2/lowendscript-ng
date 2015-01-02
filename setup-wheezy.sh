@@ -257,6 +257,7 @@ END
 # Create a ssl default ssl certificate.
 # This can be reused instead of creating a creating a self signed certificate.
     if [ ! -e /etc/nginx/ssl_keys/default.pem ]; then
+    hostname=`hostname -f`
 	cat > /etc/nginx/ssl_keys/default.conf <<END
 [req]
 distinguished_name  = req_distinguished_name
@@ -268,15 +269,12 @@ countryName_min         = 2
 countryName_max         = 2
 
 commonName          = Common Name (eg, YOUR name)
-commonName_default  = Default CA
+commonName_default  = $hostname
 commonName_max          = 64
 END
-	openssl genrsa -passout pass:password -des3 -out /etc/nginx/ssl_keys/default.key.secure 4096
-	openssl req -passin pass:password -new -x509 -key /etc/nginx/ssl_keys/default.key.secure -out /etc/nginx/ssl_keys/default.pem -days 3650 -config /etc/nginx/ssl_keys/default.conf -batch
-	openssl rsa -passin pass:password -in /etc/nginx/ssl_keys/default.key.secure -out /etc/nginx/ssl_keys/default.key
-
-	#openssl ecparam -out /etc/nginx/ssl_keys/default.ec.key -name secp521r1 -genkey
-	#openssl req -new -key /etc/nginx/ssl_keys/default.ec.key -x509 -nodes -days 3650 -out /etc/nginx/ssl_keys/default.ec.crt -config /etc/nginx/ssl_keys/default.ec.conf -batch
+	openssl genrsa -out /etc/nginx/ssl_keys/default.key 4096 -sha256
+	openssl req -new -x509 -key /etc/nginx/ssl_keys/default.key -out /etc/nginx/ssl_keys/default.pem -days 3650 -config /etc/nginx/ssl_keys/default.conf -sha256 -batch
+#	openssl rsa -passin pass:password -in /etc/nginx/ssl_keys/default.key.secure -out /etc/nginx/ssl_keys/default.key
     fi
 
     cat > /etc/nginx/nginx.conf <<END
