@@ -109,7 +109,7 @@ END
 }
 
 function install_dropbear {
-    if [ "DISTRIBUTION" = "wheezy" ]; then
+    if [ "$DISTRIBUTION" = "wheezy" ]; then
 	    check_upgrade ssh "ssh" "-t wheezy-backports"
     else
         check_upgrade ssh "ssh"
@@ -164,7 +164,7 @@ END
 }
 
 function install_postfix {
-    if [ "DISTRIBUTION" = "wheezy" ]; then
+    if [ "$DISTRIBUTION" = "wheezy" ]; then
         check_install postfix "postfix procmail" "-t wheezy-backports"
     else
         check_install postfix "postfix procmail"
@@ -1410,7 +1410,7 @@ function update_upgrade {
     # Run through the apt-get update/upgrade first. This should be done before
     # we try to install any package
 
-    if [ "DISTRIBUTION" = "wheezy" ]; then
+    if [ "$DISTRIBUTION" = "wheezy" ]; then
         cat > /etc/apt/sources.list.d/backports.list <<END
 deb http://ftp.debian.org/debian/ wheezy-backports main
 #deb-src http://ftp.debian.org/debian/ wheezy-backports main
