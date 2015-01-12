@@ -400,6 +400,7 @@ END
     return 444;
 }
 END
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 	cat > /etc/nginx/standard.conf <<END
 location = /favicon.ico {
 	return 204;
