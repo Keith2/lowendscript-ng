@@ -1436,6 +1436,7 @@ END
 	check_install sudo "sudo"
 	add_user
     check_install dialog "dialog"
+    check_install ca-certificates "ca-certificates"
     check_install locales "locales"
     dpkg-reconfigure locales
     apt-get -q -y upgrade
