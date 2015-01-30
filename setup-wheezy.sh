@@ -120,6 +120,9 @@ function install_dropbear {
     # Disable SSH
     touch /etc/ssh/sshd_not_to_be_run
     invoke-rc.d ssh stop
+    
+    # SSHd Fix
+    sed -i '$imkdir -p -m0755 /var/run/sshd' rc.local
 
     if [ -z $SSH_PORT ];then
         SSH_PORT=22
