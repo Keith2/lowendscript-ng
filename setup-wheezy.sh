@@ -1442,6 +1442,7 @@ END
     apt-get -q -y upgrade
     check_install tzdata "tzdata"
     dpkg-reconfigure tzdata
+    check_install cron "cron"
     install_dash
     install_syslogd
     install_dropbear
