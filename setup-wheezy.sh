@@ -302,7 +302,7 @@ http {
 	ignore_invalid_headers on;
 	server_tokens off;
 	log_format  main  '\$remote_addr \$host \$server_port \$remote_user [\$time_local] "\$request" '
-               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for"';
+               '\$status \$body_bytes_sent "\$http_referer" "\$http_user_agent" "\$http_x_forwarded_for" "\$gzip_ratio"';
 	upstream php {
 		server unix:/var/run/php5-fpm.sock;
 	}
@@ -331,8 +331,7 @@ http {
 	gzip_comp_level 1;
 	gzip_buffers 16 8k;
 	gzip_http_version 1.1;
-	gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-
+	gzip_types text/plain text/css application/json application/javascript text/xml application/xhtml+xml application/atom+xml application/xml+rss;
 	ssl_certificate ssl_keys/default.pem;
 	ssl_certificate_key ssl_keys/default.key;
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
