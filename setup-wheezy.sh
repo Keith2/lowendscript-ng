@@ -155,6 +155,9 @@ END
     ssh-keygen -f /root/.ssh/id_rsa -N "" -t rsa -b 4096
     ssh-keygen -f /root/.ssh/id_ed25519 -N "" -t ed25519
     ssh-keygen -f /etc/ssh/ssh_host_ed25519_key -N "" -t ed25519
+    if [ ! -d /home/$USER/.ssh ]; then
+        mkdir /home/$USER/.ssh
+	fi
     ssh-keygen -f /home/$USER/.ssh/id_rsa -N "" -t rsa -b 4096
     ssh-keygen -f /home/$USER/.ssh/id_ed25519 -N "" -t ed25519
     sed -i "/ssh_host_dsa_key/c#HostKey \/etc\/ssh\/ssh_host_dsa_key/" /etc/ssh/sshd_config
